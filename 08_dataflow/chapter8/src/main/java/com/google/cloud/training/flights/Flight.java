@@ -14,10 +14,10 @@
  * the License.
  */
 
-package com.google.cloud.training.dataanalyst.flights;
+package com.google.cloud.training.flights;
 
-import com.google.cloud.dataflow.sdk.coders.AvroCoder;
-import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
 
 /**
  * @author vlakshmanan

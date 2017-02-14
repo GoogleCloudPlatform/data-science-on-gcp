@@ -14,19 +14,21 @@
  * the License.
  */
 
-package com.google.cloud.training.dataanalyst.flights;
+package com.google.cloud.training.flights;
 
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Mean;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
 /**
  * A dataflow pipeline to create the training dataset to predict whether a
@@ -37,11 +39,11 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
  * @author vlakshmanan
  *
  */
-public class CreateTrainingDataset3 {
+public class CreateTrainingDataset4 {
 	@SuppressWarnings("serial")
 	public static class ParseFlights extends DoFn<String, Flight> {
 
-		@Override
+		@ProcessElement
 		public void processElement(ProcessContext c) throws Exception {
 			String line = c.element();
 			try {
@@ -68,7 +70,7 @@ public class CreateTrainingDataset3 {
 
 	}
 
-	private static final Logger LOG = LoggerFactory.getLogger(CreateTrainingDataset3.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CreateTrainingDataset4.class);
 
 	public static interface MyOptions extends PipelineOptions {
 		@Description("Path of the file to read from")
@@ -89,17 +91,42 @@ public class CreateTrainingDataset3 {
 		MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
 		Pipeline p = Pipeline.create(options);
 
-		p //
+		PCollection<Flight> flights = p //
 				.apply("ReadLines", TextIO.Read.from(options.getInput())) //
 				.apply("ParseFlights", ParDo.of(new ParseFlights())) //
-				.apply("ToCsv", ParDo.of(new DoFn<Flight, String>() {
-					@Override
+		;
+
+		PCollection<KV<String, Double>> delays = flights
+				.apply("airport:hour", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
+
+					@ProcessElement
 					public void processElement(ProcessContext c) throws Exception {
 						Flight f = c.element();
-						c.output(f.toTrainingCsv());
+						String key = f.fromAirport + ":" + f.depHour;
+						double value = f.departureDelay + f.taxiOutTime;
+						c.output(KV.of(key, value));
 					}
+
 				})) //
-				.apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights3").withSuffix(".csv"));
+				.apply(Mean.perKey());
+
+		delays.apply("DelayToCsv", ParDo.of(new DoFn<KV<String, Double>, String>() {
+			@ProcessElement
+			public void processElement(ProcessContext c) throws Exception {
+				KV<String, Double> kv = c.element();
+				c.output(kv.getKey() + "," + kv.getValue());
+			}
+		})) //
+				.apply("WriteDelays", TextIO.Write.to(options.getOutput() + "delays4").withSuffix(".csv"));
+
+		flights.apply("ToCsv", ParDo.of(new DoFn<Flight, String>() {
+			@ProcessElement
+			public void processElement(ProcessContext c) throws Exception {
+				Flight f = c.element();
+				c.output(f.toTrainingCsv());
+			}
+		})) //
+				.apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights4").withSuffix(".csv"));
 
 		p.run();
 	}

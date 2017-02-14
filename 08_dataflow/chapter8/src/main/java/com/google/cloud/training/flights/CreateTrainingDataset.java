@@ -14,26 +14,25 @@
  * the License.
  */
 
-package com.google.cloud.training.dataanalyst.flights;
+package com.google.cloud.training.flights;
 
 import java.util.Map;
 
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Mean;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.Mean;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.View;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
 /**
  * A dataflow pipeline to create the training dataset to predict whether a
@@ -44,17 +43,17 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
  * @author vlakshmanan
  *
  */
-public class CreateTrainingDataset5 {
+public class CreateTrainingDataset {
 	@SuppressWarnings("serial")
 	public static class ParseFlights extends DoFn<String, Flight> {
 		private final PCollectionView<Map<String, String>> traindays;
-		
+
 		public ParseFlights(PCollectionView<Map<String, String>> traindays) {
 			super();
 			this.traindays = traindays;
 		}
 
-		@Override
+		@ProcessElement
 		public void processElement(ProcessContext c) throws Exception {
 			String line = c.element();
 			try {
@@ -62,16 +61,16 @@ public class CreateTrainingDataset5 {
 				if (fields[22].length() == 0) {
 					return; // delayed/canceled
 				}
-								
+
 				Flight f = new Flight();
 				f.date = fields[0];
-				
+
 				boolean isTrainDay = c.sideInput(traindays).containsKey(f.date);
 				if (!isTrainDay) {
 					LOG.debug("Ignoring " + f.date + " as it is not a trainday");
 					return;
 				}
-				
+
 				f.fromAirport = fields[8];
 				f.toAirport = fields[12];
 				f.depHour = Integer.parseInt(fields[13]) / 100; // 2358 -> 23
@@ -89,8 +88,8 @@ public class CreateTrainingDataset5 {
 
 	}
 
-	private static final Logger LOG = LoggerFactory.getLogger(CreateTrainingDataset5.class);
-	
+	private static final Logger LOG = LoggerFactory.getLogger(CreateTrainingDataset.class);
+
 	public static interface MyOptions extends PipelineOptions {
 		@Description("Path of the file to read from")
 		@Default.String("/Users/vlakshmanan/data/flights/small.csv")
@@ -127,11 +126,14 @@ public class CreateTrainingDataset5 {
 		PCollection<KV<String, Double>> delays = flights
 				.apply("airport:hour", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
 
-					@Override
+					@ProcessElement
 					public void processElement(ProcessContext c) throws Exception {
 						Flight f = c.element();
 						String key = f.fromAirport + ":" + f.depHour;
 						double value = f.departureDelay + f.taxiOutTime;
+						c.output(KV.of(key, value));
+						key = "arr_" + f.toAirport + ":" + f.date + ":" + f.arrHour;
+						value = f.arrivalDelay;
 						c.output(KV.of(key, value));
 					}
 
@@ -139,22 +141,41 @@ public class CreateTrainingDataset5 {
 				.apply(Mean.perKey());
 
 		delays.apply("DelayToCsv", ParDo.of(new DoFn<KV<String, Double>, String>() {
-			@Override
+			@ProcessElement
 			public void processElement(ProcessContext c) throws Exception {
 				KV<String, Double> kv = c.element();
-				c.output(kv.getKey() + "," + kv.getValue());
+				if (!kv.getKey().startsWith("arr_")){
+					c.output(kv.getKey() + "," + kv.getValue());
+				}
 			}
 		})) //
-				.apply("WriteDelays", TextIO.Write.to(options.getOutput() + "delays5").withSuffix(".csv"));
+				.apply("WriteDelays", TextIO.Write.to(options.getOutput() + "delays").withSuffix(".csv"));
+
+		PCollectionView<Map<String, Double>> avgDelay = delays.apply(View.asMap());
+		flights = flights.apply("AddDelayInfo", ParDo.withSideInputs(avgDelay).of(new DoFn<Flight, Flight>() {
+
+			@ProcessElement
+			public void processElement(ProcessContext c) throws Exception {
+				Flight f = c.element().newCopy();
+				String key = f.fromAirport + ":" + f.depHour;
+				Double delay = c.sideInput(avgDelay).get(key);
+				f.averageDepartureDelay = (delay == null)? 0 : delay;
+				key = "arr_" + f.toAirport + ":" + f.date + ":" + (f.depHour-1);
+				delay = c.sideInput(avgDelay).get(key);
+				f.averageArrivalDelay = (delay == null)? 0 : delay;
+				c.output(f);
+			}
+
+		}));
 
 		flights.apply("ToCsv", ParDo.of(new DoFn<Flight, String>() {
-			@Override
+			@ProcessElement
 			public void processElement(ProcessContext c) throws Exception {
 				Flight f = c.element();
 				c.output(f.toTrainingCsv());
 			}
 		})) //
-				.apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights5").withSuffix(".csv"));
+				.apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights").withSuffix(".csv"));
 
 		p.run();
 	}
@@ -163,7 +184,7 @@ public class CreateTrainingDataset5 {
 	private static PCollectionView<Map<String, String>> getTrainDays(Pipeline p, String path) {
 		return p.apply("Read trainday.csv", TextIO.Read.from(path)) //
 				.apply("Parse trainday.csv", ParDo.of(new DoFn<String, KV<String, String>>() {
-					@Override
+					@ProcessElement
 					public void processElement(ProcessContext c) throws Exception {
 						String line = c.element();
 						String[] fields = line.split(",");

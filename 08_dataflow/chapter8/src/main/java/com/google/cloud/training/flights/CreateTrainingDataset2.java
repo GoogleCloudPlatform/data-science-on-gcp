@@ -14,19 +14,18 @@
  * the License.
  */
 
-package com.google.cloud.training.dataanalyst.flights;
+package com.google.cloud.training.flights;
 
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
 /**
  * A dataflow pipeline to create the training dataset to predict whether a
@@ -61,17 +60,19 @@ public class CreateTrainingDataset2 {
 
 		p //
 				.apply("ReadLines", TextIO.Read.from(options.getInput())) //
-				.apply("FilterDFW", ParDo.of(new DoFn<String, String>() {
+				.apply("FilterMIA", ParDo.of(new DoFn<String, String>() {
 
-					@Override
-					public void processElement(ProcessContext c) throws Exception {
+					@ProcessElement
+					public void processElement(ProcessContext c) {
 						String input = c.element();
-						if (input.contains("DFW")) {
+						if (input.contains("MIA")) {
 							c.output(input);
 						}
 					}
 				})) //
-				.apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights2").withSuffix(".txt"));
+				.apply("WriteFlights", //
+						TextIO.Write.to(options.getOutput() + "flights2") //
+								.withSuffix(".txt").withoutSharding());
 
 		p.run();
 	}

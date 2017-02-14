@@ -14,22 +14,25 @@
  * the License.
  */
 
-package com.google.cloud.training.dataanalyst.flights;
+package com.google.cloud.training.flights;
 
+import java.util.Map;
+
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Mean;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.Mean;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
 
 /**
  * A dataflow pipeline to create the training dataset to predict whether a
@@ -40,11 +43,17 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * @author vlakshmanan
  *
  */
-public class CreateTrainingDataset4 {
+public class CreateTrainingDataset5 {
 	@SuppressWarnings("serial")
 	public static class ParseFlights extends DoFn<String, Flight> {
+		private final PCollectionView<Map<String, String>> traindays;
+		
+		public ParseFlights(PCollectionView<Map<String, String>> traindays) {
+			super();
+			this.traindays = traindays;
+		}
 
-		@Override
+		@ProcessElement
 		public void processElement(ProcessContext c) throws Exception {
 			String line = c.element();
 			try {
@@ -52,8 +61,16 @@ public class CreateTrainingDataset4 {
 				if (fields[22].length() == 0) {
 					return; // delayed/canceled
 				}
+								
 				Flight f = new Flight();
 				f.date = fields[0];
+				
+				boolean isTrainDay = c.sideInput(traindays).containsKey(f.date);
+				if (!isTrainDay) {
+					LOG.debug("Ignoring " + f.date + " as it is not a trainday");
+					return;
+				}
+				
 				f.fromAirport = fields[8];
 				f.toAirport = fields[12];
 				f.depHour = Integer.parseInt(fields[13]) / 100; // 2358 -> 23
@@ -71,8 +88,8 @@ public class CreateTrainingDataset4 {
 
 	}
 
-	private static final Logger LOG = LoggerFactory.getLogger(CreateTrainingDataset4.class);
-
+	private static final Logger LOG = LoggerFactory.getLogger(CreateTrainingDataset5.class);
+	
 	public static interface MyOptions extends PipelineOptions {
 		@Description("Path of the file to read from")
 		@Default.String("/Users/vlakshmanan/data/flights/small.csv")
@@ -85,6 +102,12 @@ public class CreateTrainingDataset4 {
 		String getOutput();
 
 		void setOutput(String s);
+
+		@Description("Path of trainday.csv")
+		@Default.String("gs://cloud-training-demos/flights/trainday.csv")
+		String getTraindayCsvPath();
+
+		void setTraindayCsvPath(String s);
 	}
 
 	@SuppressWarnings("serial")
@@ -92,15 +115,18 @@ public class CreateTrainingDataset4 {
 		MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
 		Pipeline p = Pipeline.create(options);
 
+		// read traindays.csv into memory for use as a side-input
+		PCollectionView<Map<String, String>> traindays = getTrainDays(p, options.getTraindayCsvPath());
+
 		PCollection<Flight> flights = p //
 				.apply("ReadLines", TextIO.Read.from(options.getInput())) //
-				.apply("ParseFlights", ParDo.of(new ParseFlights())) //
+				.apply("ParseFlights", ParDo.withSideInputs(traindays).of(new ParseFlights(traindays))) //
 		;
 
 		PCollection<KV<String, Double>> delays = flights
 				.apply("airport:hour", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
 
-					@Override
+					@ProcessElement
 					public void processElement(ProcessContext c) throws Exception {
 						Flight f = c.element();
 						String key = f.fromAirport + ":" + f.depHour;
@@ -112,23 +138,39 @@ public class CreateTrainingDataset4 {
 				.apply(Mean.perKey());
 
 		delays.apply("DelayToCsv", ParDo.of(new DoFn<KV<String, Double>, String>() {
-			@Override
+			@ProcessElement
 			public void processElement(ProcessContext c) throws Exception {
 				KV<String, Double> kv = c.element();
 				c.output(kv.getKey() + "," + kv.getValue());
 			}
 		})) //
-				.apply("WriteDelays", TextIO.Write.to(options.getOutput() + "delays4").withSuffix(".csv"));
+				.apply("WriteDelays", TextIO.Write.to(options.getOutput() + "delays5").withSuffix(".csv"));
 
 		flights.apply("ToCsv", ParDo.of(new DoFn<Flight, String>() {
-			@Override
+			@ProcessElement
 			public void processElement(ProcessContext c) throws Exception {
 				Flight f = c.element();
 				c.output(f.toTrainingCsv());
 			}
 		})) //
-				.apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights4").withSuffix(".csv"));
+				.apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights5").withSuffix(".csv"));
 
 		p.run();
+	}
+
+	@SuppressWarnings("serial")
+	private static PCollectionView<Map<String, String>> getTrainDays(Pipeline p, String path) {
+		return p.apply("Read trainday.csv", TextIO.Read.from(path)) //
+				.apply("Parse trainday.csv", ParDo.of(new DoFn<String, KV<String, String>>() {
+					@ProcessElement
+					public void processElement(ProcessContext c) throws Exception {
+						String line = c.element();
+						String[] fields = line.split(",");
+						if (fields.length > 1 && "True".equals(fields[1])) {
+							c.output(KV.of(fields[0], "")); // ignore value
+						}
+					}
+				})) //
+				.apply("toView", View.asMap());
 	}
 }

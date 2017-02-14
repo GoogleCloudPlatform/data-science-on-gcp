@@ -84,6 +84,12 @@ def get_next_event(fields):
        for f in [16,17,18,19,21,22,25]:
           event[f] = ''  # not knowable at departure time
        yield event
+    if len(fields[17]) > 0:
+       event = list(fields) # copy
+       event.extend(['wheelsoff', fields[17]])
+       for f in [18,19,21,22,25]:
+          event[f] = ''  # not knowable at wheelsoff time
+       yield event
     if len(fields[21]) > 0:
        event = list(fields)
        event.extend(['arrived', fields[21]])
@@ -101,7 +107,7 @@ def create_row(fields):
 def run(project, bucket):
    argv = [
       '--project={0}'.format(project),
-      '--job_name=ch03timecorr',
+      '--job_name=ch04timecorr',
       '--save_main_session',
       '--staging_location=gs://{0}/flights/staging/'.format(bucket),
       '--temp_location=gs://{0}/flights/temp/'.format(bucket),

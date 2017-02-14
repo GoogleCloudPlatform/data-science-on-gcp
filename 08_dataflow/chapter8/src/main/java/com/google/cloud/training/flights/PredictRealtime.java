@@ -14,32 +14,31 @@
  * the License.
  */
 
-package com.google.cloud.training.dataanalyst.flights;
+package com.google.cloud.training.flights;
 
 import java.util.Map;
 
+import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.PubsubIO;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Mean;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.io.PubsubIO;
-import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.Mean;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.View;
-import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
 /**
  * A dataflow pipeline to predict whether a flight will be delayed by 15 or more
@@ -62,7 +61,7 @@ public class PredictRealtime {
 			this.streaming = streaming;
 		}
 
-		@Override
+		@ProcessElement
 		public void processElement(ProcessContext c) throws Exception {
 			String line = c.element();
 			try {
@@ -149,7 +148,7 @@ public class PredictRealtime {
 		if (streaming) {
 			LOG.info("Creating real-time pipeline that reads from Pub/Sub I/O");
 			options.setStreaming(true);
-			options.setRunner(DataflowPipelineRunner.class);
+			options.setRunner(DataflowRunner.class);
 		}
 		Pipeline p = Pipeline.create(options);
 
@@ -160,7 +159,7 @@ public class PredictRealtime {
 		PCollection<String> lines;
 		if (streaming) {
 			// real-time for pub-sub
-			lines = p.apply("ReadLines", PubsubIO.Read.topic(options.getInput())) //
+			lines = p.apply("ReadLines", PubsubIO.<String>read().topic(options.getInput())) //
 					.apply("window",
 							Window.into(SlidingWindows//
 									.of(Duration.standardMinutes(60))//
@@ -177,7 +176,7 @@ public class PredictRealtime {
 		PCollectionView<Map<String, Double>> arrDelay = flights
 				.apply("airport:hour", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
 
-					@Override
+					@ProcessElement
 					public void processElement(ProcessContext c) throws Exception {
 						Flight f = c.element();
 						if (f.arrHour != ParseFlights.INVALID_HOUR) {
@@ -195,9 +194,9 @@ public class PredictRealtime {
 		flights.apply("Predict", ParDo.withSideInputs(arrDelay).of(new DoFn<Flight, String>() {
 
 			// FIXME: distribute predictions to different machines
-			transient TensorflowModel tfModel = new TensorflowModel(options.getModelfile(), options.getGraphfile());
+			//transient TensorflowModel tfModel = new TensorflowModel(options.getModelfile(), options.getGraphfile());
 			
-			@Override
+			@ProcessElement
 			public void processElement(ProcessContext c) throws Exception {
 				Flight f = c.element();
 				if (f.arrHour == ParseFlights.INVALID_HOUR) {
@@ -209,7 +208,7 @@ public class PredictRealtime {
 					f.averageArrivalDelay = (delay == null) ? 0 : delay;
 
 					// predict
-					boolean ontime = tfModel.predict(f.getInputFeatures()) > 0.5;
+					boolean ontime = true; //tfModel.predict(f.getInputFeatures()) > 0.5;
 
 					// output
 					c.output(f.line + "," + ontime);
@@ -218,7 +217,7 @@ public class PredictRealtime {
 		}));
 		
 		if (streaming) {
-			pred.apply("WriteFlights", PubsubIO.Write.topic(options.getOutput()));
+			pred.apply("WriteFlights", PubsubIO.<String>write().topic(options.getOutput()));
 		} else {
 			pred.apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights").withSuffix(".csv"));
 		}
@@ -240,7 +239,7 @@ public class PredictRealtime {
 	private static PCollectionView<Map<String, Double>> getAverageDelays(Pipeline p, String path) {
 		return p.apply("Read delays-*.csv", TextIO.Read.from(path + "delays-*.csv")) //
 				.apply("Parse delays-*.csv", ParDo.of(new DoFn<String, KV<String, Double>>() {
-					@Override
+					@ProcessElement
 					public void processElement(ProcessContext c) throws Exception {
 						String line = c.element();
 						String[] fields = line.split(",");
