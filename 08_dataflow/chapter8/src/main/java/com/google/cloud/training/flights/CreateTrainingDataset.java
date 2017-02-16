@@ -93,7 +93,7 @@ public class CreateTrainingDataset {
     query += " (EVENT = 'wheelsoff' OR EVENT = 'arrived') ";
     query += " ORDER BY NOTIFY_TIME ASC";
     LOG.info(query);
-    System.exit(-1);
+    
     PCollection<Flight> flights = p //
         .apply("ReadLines", BigQueryIO.Read.fromQuery(query)) //
         .apply("ParseFlights", ParDo.of(new DoFn<TableRow, Flight>() {
