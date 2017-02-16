@@ -27,13 +27,10 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -47,13 +44,14 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.training.flights.Flight.INPUTCOLS;
 
 /**
- * Adds in average arrival delays
+ * Refactored to happen in stages.
  * 
  * @author vlakshmanan
  *
  */
-public class CreateTrainingDataset {
-  private static final Logger LOG = LoggerFactory.getLogger(CreateTrainingDataset.class);
+@SuppressWarnings("serial")
+public class CreateDatasets {
+  private static final Logger LOG = LoggerFactory.getLogger(CreateDatasets.class);
   
   public static interface MyOptions extends DataflowPipelineOptions {
     @Description("Should we process the full dataset or just a small sample?")
@@ -63,7 +61,7 @@ public class CreateTrainingDataset {
     void setFullDataset(boolean b);
     
     @Description("Path of the output directory")
-    @Default.String("gs://cloud-training-demos-ml/flights/chapter8/traindata")
+    @Default.String("gs://cloud-training-demos-ml/flights/chapter8/output/")
     String getOutput();
 
     void setOutput(String s);
@@ -73,12 +71,30 @@ public class CreateTrainingDataset {
     String getTraindayCsvPath();
 
     void setTraindayCsvPath(String s);
+    
+    @Description("Choose stage:  depdelay  training  test")
+    String getStage();
+
+    void setStage(String s);
+  }
+  
+  public static enum Stage {
+    DEPDELAY, TRAINING, TEST;
   }
 
-  @SuppressWarnings("serial")
   public static void main(String[] args) {
     MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
-    options.setStreaming(true);
+    
+    final Stage PROCESS_STAGE = Stage.valueOf(options.getStage().toUpperCase());
+    
+    if (PROCESS_STAGE != Stage.DEPDELAY){
+      // training and test involve streaming computation of arrival delay
+      options.setStreaming(true);
+      LOG.info("Computing arrival delay in streaming mode");
+    } else {
+      LOG.info("Computing departure delay in batch mode");
+    }
+    
     options.setRunner(DataflowRunner.class);
     options.setTempLocation("gs://cloud-training-demos-ml/flights/staging");
     Pipeline p = Pipeline.create(options);
@@ -107,14 +123,22 @@ public class CreateTrainingDataset {
             }
           }
         })) //
-        .apply("TrainOnly", ParDo.withSideInputs(traindays).of(new DoFn<Flight, Flight>() {
+        .apply("Train/Test", ParDo.withSideInputs(traindays).of(new DoFn<Flight, Flight>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
             Flight f = c.element();
             String date = f.getField(Flight.INPUTCOLS.FL_DATE);
             boolean isTrainDay = c.sideInput(traindays).containsKey(date);
-            if (isTrainDay) {
-              c.output(f);
+            if (PROCESS_STAGE == Stage.TEST){
+              if (!isTrainDay) {
+                // test data
+                c.output(f);
+              }
+            } else {
+              // training and depdelay use training data
+              if (isTrainDay) {
+                c.output(f);
+              }
             }
           }
         })) //
@@ -127,30 +151,31 @@ public class CreateTrainingDataset {
             }
           }
         }));
+    
+    
+    if (PROCESS_STAGE == Stage.DEPDELAY){
+      writeAvgDepartureDelay(options, flights);
+    } else {  
+      writeFlights(options, p, flights);
+    }
+    
+    PipelineResult result = p.run();
+    if (!options.getFullDataset()) {
+      // for small datasets, block
+      result.waitUntilFinish();
+    }
+  }
 
+  private static void writeFlights(MyOptions options, Pipeline p, PCollection<Flight> flights) {
+    // read departure delay that was written out by earlier pipeline run
+    PCollectionView<Map<String, Double>> avgDepDelay = getDepartureDelays(options, p);
+    
+    // compute arrival delay on streaming data over past hour
     PCollection<Flight> lastHourFlights = //
         flights.apply(Window.into(SlidingWindows//
         .of(Duration.standardHours(1))//
         .every(Duration.standardMinutes(5))));
 
-    
-    PCollection<KV<String, Double>> depDelays = flights
-        .apply("airport:hour->depdelay", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
-
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            Flight f = c.element();
-            if (f.getField(Flight.INPUTCOLS.EVENT).equals("wheelsoff")) {
-              String key = f.getField(Flight.INPUTCOLS.ORIGIN) + ":" + f.getDepartureHour();
-              double value = f.getFieldAsFloat(Flight.INPUTCOLS.DEP_DELAY)
-                  + f.getFieldAsFloat(Flight.INPUTCOLS.TAXI_OUT);
-              c.output(KV.of(key, value));
-            }
-          }
-
-        })) //
-        .apply("avgDepDelay", Mean.perKey());
-    
     PCollection<KV<String, Double>> arrDelays = lastHourFlights
         .apply("airport->arrdelay", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
 
@@ -167,10 +192,10 @@ public class CreateTrainingDataset {
         })) //
         .apply("avgArrDelay", Mean.perKey());
 
-    PCollectionView<Map<String, Double>> avgDepDelay = depDelays.apply("depdelay->map", View.asMap());
+    // pull in the two side-inputs
     PCollectionView<Map<String, Double>> avgArrDelay = arrDelays.apply("arrdelay->map", View.asMap());
     
-    flights = lastHourFlights.apply("AddDelayInfo", ParDo.withSideInputs(avgDepDelay, avgArrDelay).of(new DoFn<Flight, Flight>() {
+    lastHourFlights = lastHourFlights.apply("AddDelayInfo", ParDo.withSideInputs(avgDepDelay, avgArrDelay).of(new DoFn<Flight, Flight>() {
 
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
@@ -186,16 +211,9 @@ public class CreateTrainingDataset {
 
     }));
     
-    depDelays.apply("DepDelayToCsv", ParDo.of(new DoFn<KV<String, Double>, String>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
-        KV<String, Double> kv = c.element();
-        c.output(kv.getKey() + "," + kv.getValue());
-      }
-    })) //
-        .apply("WriteDepDelays", TextIO.Write.to(options.getOutput() + "delays").withSuffix(".csv").withoutSharding()); 
-
-    flights.apply("ToCsv", ParDo.of(new DoFn<Flight, String>() {
+    String outfile = options.getStage().toLowerCase(); // training.csv or test.csv
+    
+    lastHourFlights.apply("ToCsv", ParDo.of(new DoFn<Flight, String>() {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         Flight f = c.element();
@@ -204,16 +222,37 @@ public class CreateTrainingDataset {
         }
       }
     })) //
-        .apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights").withSuffix(".csv").withoutSharding());
-
-    PipelineResult result = p.run();
-    if (!options.getFullDataset()) {
-      // for small datasets, block
-      result.waitUntilFinish();
-    }
+        .apply("WriteFlights", TextIO.Write.to(options.getOutput() + outfile).withSuffix(".csv").withoutSharding());
   }
 
-  @SuppressWarnings("serial")
+  private static void writeAvgDepartureDelay(MyOptions options, PCollection<Flight> flights) {
+    PCollection<KV<String, Double>> depDelays = flights
+        .apply("airport:hour->depdelay", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
+
+          @ProcessElement
+          public void processElement(ProcessContext c) throws Exception {
+            Flight f = c.element();
+            if (f.getField(Flight.INPUTCOLS.EVENT).equals("wheelsoff")) {
+              String key = f.getField(Flight.INPUTCOLS.ORIGIN) + ":" + f.getDepartureHour();
+              double value = f.getFieldAsFloat(Flight.INPUTCOLS.DEP_DELAY)
+                  + f.getFieldAsFloat(Flight.INPUTCOLS.TAXI_OUT);
+              c.output(KV.of(key, value));
+            }
+          }
+
+        })) //
+        .apply("avgDepDelay", Mean.perKey());      
+ 
+    depDelays.apply("DepDelayToCsv", ParDo.of(new DoFn<KV<String, Double>, String>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) throws Exception {
+        KV<String, Double> kv = c.element();
+        c.output(kv.getKey() + "," + kv.getValue());
+      }
+    })) //
+        .apply("WriteDepDelays", TextIO.Write.to(options.getOutput() + "delays").withSuffix(".csv").withoutSharding());
+  }
+
   private static PCollectionView<Map<String, String>> getTrainDays(Pipeline p, String path) {
     return p.apply("Read trainday.csv", TextIO.Read.from(path)) //
         .apply("Parse trainday.csv", ParDo.of(new DoFn<String, KV<String, String>>() {
@@ -224,6 +263,22 @@ public class CreateTrainingDataset {
             if (fields.length > 1 && "True".equals(fields[1])) {
               c.output(KV.of(fields[0], "")); // ignore value
             }
+          }
+        })) //
+        .apply("toView", View.asMap());
+  }
+  
+  private static PCollectionView<Map<String, Double>> getDepartureDelays(MyOptions options, Pipeline p) {
+    String path = options.getOutput() + "delays.csv";
+    return p.apply("Read delay.csv", TextIO.Read.from(path)) //
+        .apply("Parse delay.csv", ParDo.of(new DoFn<String, KV<String, Double>>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) throws Exception {
+            String line = c.element();
+            String[] fields = line.split(",");
+            String key = fields[0];
+            Double value = Double.parseDouble(fields[1]);
+            c.output(KV.of(key, value));
           }
         })) //
         .apply("toView", View.asMap());
