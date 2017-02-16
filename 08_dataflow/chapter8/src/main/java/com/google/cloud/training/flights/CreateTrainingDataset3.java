@@ -24,82 +24,69 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import com.google.cloud.training.flights.Flight.INPUTCOLS;
 
 /**
- * A dataflow pipeline to create the training dataset to predict whether a
- * flight will be delayed by 15 or more minutes. The key thing that this
- * pipeline does is to add the average delays for the from & to airports at this
- * hour to the set of training features.
+ * Demonstrates parsing into an object and passing that object around.
  * 
  * @author vlakshmanan
  *
  */
 public class CreateTrainingDataset3 {
-	@SuppressWarnings("serial")
-	public static class ParseFlights extends DoFn<String, Flight> {
+  public static interface MyOptions extends PipelineOptions {
+    @Description("Path of the file to read from")
+    @Default.String("/Users/vlakshmanan/data/flights/small.csv")
+    String getInput();
 
-		@ProcessElement
-		public void processElement(ProcessContext c) throws Exception {
-			String line = c.element();
-			try {
-				String[] fields = line.split(",");
-				if (fields[22].length() == 0) {
-					return; // delayed/canceled
-				}
-				Flight f = new Flight();
-				f.date = fields[0];
-				f.fromAirport = fields[8];
-				f.toAirport = fields[12];
-				f.depHour = Integer.parseInt(fields[13]) / 100; // 2358 -> 23
-				f.arrHour = Integer.parseInt(fields[21]) / 100;
-				f.departureDelay = Double.parseDouble(fields[15]);
-				f.taxiOutTime = Double.parseDouble(fields[16]);
-				f.distance = Double.parseDouble(fields[26]);
-				f.arrivalDelay = Double.parseDouble(fields[22]);
-				f.averageDepartureDelay = f.averageArrivalDelay = Double.NaN;
-				c.output(f);
-			} catch (Exception e) {
-				LOG.warn("Malformed line {" + line + "} skipped", e);
-			}
-		}
+    void setInput(String s);
 
-	}
+    @Description("Path of the output directory")
+    @Default.String("/tmp/output/")
+    String getOutput();
 
-	private static final Logger LOG = LoggerFactory.getLogger(CreateTrainingDataset3.class);
+    void setOutput(String s);
+  }
 
-	public static interface MyOptions extends PipelineOptions {
-		@Description("Path of the file to read from")
-		@Default.String("/Users/vlakshmanan/data/flights/small.csv")
-		String getInput();
+  @SuppressWarnings("serial")
+  public static void main(String[] args) {
+    MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
+    Pipeline p = Pipeline.create(options);
 
-		void setInput(String s);
+    p //
+        .apply("ReadLines", TextIO.Read.from(options.getInput())) //
+        .apply("ParseFlights", ParDo.of(new DoFn<String, Flight>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) throws Exception {
+            String line = c.element();
+            Flight f = Flight.fromCsv(line);
+            if (f != null) {
+              c.output(f);
+            }
+          }
+        })) //
+        .apply("GoodFlights", ParDo.of(new DoFn<Flight, Flight>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) throws Exception {
+            Flight f = c.element();
+            if (f.isNotCancelled() && f.isNotDiverted()) {
+              c.output(f);
+            }
+          }
+        })) //
+        .apply("ToCsv", ParDo.of(new DoFn<Flight, String>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) throws Exception {
+            Flight f = c.element();
+            if (f.getField(INPUTCOLS.EVENT).equals("arrived")) {
+              c.output(f.toTrainingCsv());
+            }
+          }
+        })) //
+        .apply("WriteFlights", //
+            TextIO.Write.to(options.getOutput() + "flights3")//
+                .withSuffix(".csv").withoutSharding());
 
-		@Description("Path of the output directory")
-		@Default.String("/tmp/output/")
-		String getOutput();
-
-		void setOutput(String s);
-	}
-
-	@SuppressWarnings("serial")
-	public static void main(String[] args) {
-		MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
-		Pipeline p = Pipeline.create(options);
-
-		p //
-				.apply("ReadLines", TextIO.Read.from(options.getInput())) //
-				.apply("ParseFlights", ParDo.of(new ParseFlights())) //
-				.apply("ToCsv", ParDo.of(new DoFn<Flight, String>() {
-					@ProcessElement
-					public void processElement(ProcessContext c) throws Exception {
-						Flight f = c.element();
-						c.output(f.toTrainingCsv());
-					}
-				})) //
-				.apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights3").withSuffix(".csv"));
-
-		p.run();
-	}
+    p.run();
+  }
 }

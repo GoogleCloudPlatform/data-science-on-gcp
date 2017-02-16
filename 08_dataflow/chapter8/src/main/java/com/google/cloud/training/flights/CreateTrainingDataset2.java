@@ -24,56 +24,49 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * A dataflow pipeline to create the training dataset to predict whether a
- * flight will be delayed by 15 or more minutes. The key thing that this
- * pipeline does is to add the average delays for the from & to airports at this
- * hour to the set of training features.
+ * A dataflow pipeline that demonstrates TextIO and startup options.
  * 
  * @author vlakshmanan
  *
  */
 public class CreateTrainingDataset2 {
-	private static final Logger LOG = LoggerFactory.getLogger(CreateTrainingDataset2.class);
+  public static interface MyOptions extends PipelineOptions {
+    @Description("Path of the file to read from")
+    @Default.String("/Users/vlakshmanan/data/flights/small.csv")
+    String getInput();
 
-	public static interface MyOptions extends PipelineOptions {
-		@Description("Path of the file to read from")
-		@Default.String("/Users/vlakshmanan/data/flights/small.csv")
-		String getInput();
+    void setInput(String s);
 
-		void setInput(String s);
+    @Description("Path of the output directory")
+    @Default.String("/tmp/output/")
+    String getOutput();
 
-		@Description("Path of the output directory")
-		@Default.String("/tmp/output/")
-		String getOutput();
+    void setOutput(String s);
+  }
 
-		void setOutput(String s);
-	}
+  @SuppressWarnings("serial")
+  public static void main(String[] args) {
+    MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
+    Pipeline p = Pipeline.create(options);
 
-	@SuppressWarnings("serial")
-	public static void main(String[] args) {
-		MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
-		Pipeline p = Pipeline.create(options);
+    p //
+        .apply("ReadLines", TextIO.Read.from(options.getInput())) //
+        .apply("FilterMIA", ParDo.of(new DoFn<String, String>() {
 
-		p //
-				.apply("ReadLines", TextIO.Read.from(options.getInput())) //
-				.apply("FilterMIA", ParDo.of(new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            String input = c.element();
+            if (input.contains("MIA")) {
+              c.output(input);
+            }
+          }
+        })) //
+        .apply("WriteFlights", //
+            TextIO.Write.to(options.getOutput() + "flights2") //
+                .withSuffix(".txt").withoutSharding());
 
-					@ProcessElement
-					public void processElement(ProcessContext c) {
-						String input = c.element();
-						if (input.contains("MIA")) {
-							c.output(input);
-						}
-					}
-				})) //
-				.apply("WriteFlights", //
-						TextIO.Write.to(options.getOutput() + "flights2") //
-								.withSuffix(".txt").withoutSharding());
-
-		p.run();
-	}
+    p.run();
+  }
 }
