@@ -119,7 +119,7 @@ public class CreateDatasets {
             String line = (String) row.getOrDefault("EVENT_DATA", "");
             Flight f = Flight.fromCsv(line);
             if (f != null) {
-              c.output(f);
+              c.outputWithTimestamp(f, f.getEventTimestamp());
             }
           }
         })) //
