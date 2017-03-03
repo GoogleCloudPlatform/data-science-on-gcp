@@ -18,10 +18,10 @@ import apache_beam as beam
 import csv
 
 if __name__ == '__main__':
-   pipeline = beam.Pipeline('DirectPipelineRunner')
+   pipeline = beam.Pipeline('DirectRunner')
 
    airports = (pipeline 
-      | beam.Read(beam.io.TextFileSource('airports.csv.gz'))
+      | beam.io.ReadFromText('airports.csv.gz')
       | beam.Map(lambda line: next(csv.reader([line])))
       | beam.Map(lambda fields: (fields[0], (fields[21], fields[26])))
    )

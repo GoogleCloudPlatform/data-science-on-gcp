@@ -114,7 +114,7 @@ def run(project, bucket):
       '--setup_file=./setup.py',
       '--max_num_workers=10',
       '--autoscaling_algorithm=THROUGHPUT_BASED',
-      '--runner=DataflowPipelineRunner'
+      '--runner=DataflowRunner'
    ]
    airports_filename = 'gs://{}/flights/airports/airports.csv.gz'.format(bucket)
    flights_raw_files = 'gs://{}/flights/raw/*.csv'.format(bucket)
@@ -124,7 +124,7 @@ def run(project, bucket):
    pipeline = beam.Pipeline(argv=argv)
    
    airports = (pipeline 
-      | 'airports:read' >> beam.Read(beam.io.TextFileSource(airports_filename))
+      | 'airports:read' >> beam.io.ReadFromText(airports_filename)
       | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
       | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
    )

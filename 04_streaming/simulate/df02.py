@@ -29,10 +29,10 @@ def addtimezone(lat, lon):
       return (lat, lon, 'TIMEZONE') # header
 
 if __name__ == '__main__':
-   pipeline = beam.Pipeline('DirectPipelineRunner')
+   pipeline = beam.Pipeline('DirectRunner')
 
    airports = (pipeline 
-      | beam.Read(beam.io.TextFileSource('airports.csv.gz'))
+      | beam.io.ReadFromText('airports.csv.gz')
       | beam.Map(lambda line: next(csv.reader([line])))
       | beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
    )

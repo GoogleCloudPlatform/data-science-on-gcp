@@ -90,16 +90,16 @@ def get_next_event(fields):
        yield event
  
 def run()
-   pipeline = beam.Pipeline('DirectPipelineRunner')
+   pipeline = beam.Pipeline('DirectRunner')
 
    airports = (pipeline 
-      | 'airports:read' >> beam.Read(beam.io.TextFileSource('airports.csv.gz'))
+      | 'airports:read' >> beam.io.ReadFromText('airports.csv.gz')
       | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
       | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
    )
 
    flights = (pipeline 
-      | 'flights:read' >> beam.Read(beam.io.TextFileSource('201501_part.csv'))
+      | 'flights:read' >> beam.io.ReadFromText('201501_part.csv')
       | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
    )
 
