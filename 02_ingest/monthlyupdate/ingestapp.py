@@ -19,7 +19,6 @@ import logging
 import ingest_flights
 
 import flask
-import google.cloud.storage as gcs
 
 # [start config]
 app = flask.Flask(__name__)
