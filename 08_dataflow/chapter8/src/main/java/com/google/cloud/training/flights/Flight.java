@@ -76,7 +76,7 @@ public class Flight {
     return dt.getHourOfDay();
   }
 
-  public float[] getInputFeatures() {
+  private float[] getFloatFeatures() {
     float[] result = new float[5];
     int col = 0;
     result[col++] = Float.parseFloat(fields[INPUTCOLS.DEP_DELAY.ordinal()]);
@@ -88,14 +88,19 @@ public class Flight {
   }
 
   public String toTrainingCsv() {
-    float[] features = this.getInputFeatures();
+    float[] floatFeatures = this.getFloatFeatures();
     float arrivalDelay = Float.parseFloat(fields[INPUTCOLS.ARR_DELAY.ordinal()]);
     boolean ontime = arrivalDelay < 15;
     StringBuilder sb = new StringBuilder();
     sb.append(ontime ? 1.0 : 0.0);
     sb.append(",");
-    for (int i = 0; i < features.length; ++i) {
-      sb.append(features[i]);
+    for (int i = 0; i < floatFeatures.length; ++i) {
+      sb.append(floatFeatures[i]);
+      sb.append(",");
+    }
+    INPUTCOLS[] stringFeatures = {INPUTCOLS.UNIQUE_CARRIER, INPUTCOLS.DEP_AIRPORT_LAT, INPUTCOLS.DEP_AIRPORT_LON, INPUTCOLS.ARR_AIRPORT_LAT, INPUTCOLS.ARR_AIRPORT_LON, INPUTCOLS.ORIGIN, INPUTCOLS.DEST};
+    for (INPUTCOLS col : stringFeatures) {
+      sb.append(fields[col.ordinal()]);
       sb.append(",");
     }
     sb.deleteCharAt(sb.length() - 1); // last comma
