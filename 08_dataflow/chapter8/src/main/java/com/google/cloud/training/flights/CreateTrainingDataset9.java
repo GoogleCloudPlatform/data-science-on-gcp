@@ -49,6 +49,7 @@ import com.google.cloud.training.flights.Flight.INPUTCOLS;
  * @author vlakshmanan
  *
  */
+@SuppressWarnings("serial")
 public class CreateTrainingDataset9 {
   private static final Logger LOG = LoggerFactory.getLogger(CreateTrainingDataset9.class);
   
@@ -72,7 +73,6 @@ public class CreateTrainingDataset9 {
     void setTraindayCsvPath(String s);
   }
 
-  @SuppressWarnings("serial")
   public static void main(String[] args) {
     MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
     // options.setStreaming(true);
@@ -90,6 +90,71 @@ public class CreateTrainingDataset9 {
     query += " (EVENT = 'wheelsoff' OR EVENT = 'arrived') ";
     LOG.info(query);
     
+    PCollection<Flight> allFlights = readFlights(p, query);
+    
+    PCollection<KV<String, Double>> depDelays = computeAverageDepartureDelay(allFlights, traindays);
+    
+    writeDepartureDelays(depDelays, options); 
+
+    PCollectionView<Map<String, Double>> avgDepDelay = depDelays.apply("depdelay->map", View.asMap());
+
+    PCollection<Flight> hourlyFlights = allFlights //
+        .apply(Window.into(SlidingWindows//
+        .of(Duration.standardHours(1))//
+        .every(Duration.standardMinutes(5))));    
+    
+    PCollectionView<Map<String, Double>> avgArrDelay = computeAverageArrivalDelay(hourlyFlights);
+    
+    hourlyFlights = addDelayInformation(hourlyFlights, avgDepDelay, avgArrDelay);
+   
+    for (String name : new String[]{"train", "test"}){
+      boolean isTrain = name.equals("train");
+      PCollection<Flight> outFlights = filterTrainOrTest(name, hourlyFlights, traindays, isTrain); 
+      writeFlights(name, outFlights, options);
+    }
+    
+    PipelineResult result = p.run();
+    if (!options.getFullDataset()) {
+      // for small datasets, block
+      result.waitUntilFinish();
+    }
+  }
+
+  private static PCollection<KV<String, Double>> computeAverageDepartureDelay(PCollection<Flight> allFlights,
+      PCollectionView<Map<String, String>> traindays) {
+    PCollection<KV<String, Double>> depDelays = //
+        filterTrainOrTest("globalTrain", allFlights, traindays, true) //
+        .apply("airport:hour->depdelay", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
+
+          @ProcessElement
+          public void processElement(ProcessContext c) throws Exception {
+            Flight f = c.element();
+            if (f.getField(Flight.INPUTCOLS.EVENT).equals("wheelsoff")) {
+              String key = f.getField(Flight.INPUTCOLS.ORIGIN) + ":" + f.getDepartureHour();
+              double value = f.getFieldAsFloat(Flight.INPUTCOLS.DEP_DELAY)
+                  + f.getFieldAsFloat(Flight.INPUTCOLS.TAXI_OUT);
+              c.output(KV.of(key, value));
+            }
+          }
+
+        })) //
+        .apply("avgDepDelay", Mean.perKey());
+    return depDelays;
+  }
+
+
+  private static void writeDepartureDelays(PCollection<KV<String, Double>> depDelays, MyOptions options) {
+    depDelays.apply("DepDelayToCsv", ParDo.of(new DoFn<KV<String, Double>, String>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) throws Exception {
+        KV<String, Double> kv = c.element();
+        c.output(kv.getKey() + "," + kv.getValue());
+      }
+    })) //
+        .apply("WriteDepDelays", TextIO.Write.to(options.getOutput() + "delays").withSuffix(".csv").withoutSharding());
+  }
+
+  private static PCollection<Flight> readFlights(Pipeline p, String query) {
     PCollection<Flight> allFlights = p //
         .apply("ReadLines", BigQueryIO.Read.fromQuery(query)) //
         .apply("ParseFlights", ParDo.of(new DoFn<TableRow, Flight>() {
@@ -112,78 +177,25 @@ public class CreateTrainingDataset9 {
             }
           }
         }));
-    
-    PCollection<KV<String, Double>> depDelays = //
-        filterTrainOrTest("globalTrain", allFlights, traindays, true) //
-        .apply("airport:hour->depdelay", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
-
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            Flight f = c.element();
-            if (f.getField(Flight.INPUTCOLS.EVENT).equals("wheelsoff")) {
-              String key = f.getField(Flight.INPUTCOLS.ORIGIN) + ":" + f.getDepartureHour();
-              double value = f.getFieldAsFloat(Flight.INPUTCOLS.DEP_DELAY)
-                  + f.getFieldAsFloat(Flight.INPUTCOLS.TAXI_OUT);
-              c.output(KV.of(key, value));
-            }
-          }
-
-        })) //
-        .apply("avgDepDelay", Mean.perKey());
-    
-    depDelays.apply("DepDelayToCsv", ParDo.of(new DoFn<KV<String, Double>, String>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
-        KV<String, Double> kv = c.element();
-        c.output(kv.getKey() + "," + kv.getValue());
-      }
-    })) //
-        .apply("WriteDepDelays", TextIO.Write.to(options.getOutput() + "delays").withSuffix(".csv").withoutSharding()); 
-
-    PCollectionView<Map<String, Double>> avgDepDelay = depDelays.apply("depdelay->map", View.asMap());
-
-    // note that departure delay is computed only on the training data and reused in test ...
-    writeFlights(allFlights, traindays, depDelays, avgDepDelay, options, true);
-    writeFlights(allFlights, traindays, depDelays, avgDepDelay, options, false);
-    
-    PipelineResult result = p.run();
-    if (!options.getFullDataset()) {
-      // for small datasets, block
-      result.waitUntilFinish();
-    }
+    return allFlights;
   }
 
-  @SuppressWarnings("serial")
-  private static void writeFlights(PCollection<Flight> allFlights, PCollectionView<Map<String, String>> traindays, PCollection<KV<String, Double>> depDelays,
-      PCollectionView<Map<String, Double>> avgDepDelay, MyOptions options, boolean trainOrTest) {
-    
-    String name = trainOrTest? "train_" : "test_";
-    
-    PCollection<Flight> trainFlights = //
-        filterTrainOrTest(name + "hourly", allFlights, traindays, true) //
-        .apply(Window.into(SlidingWindows//
-        .of(Duration.standardHours(1))//
-        .every(Duration.standardMinutes(5))));    
-    
-    PCollection<KV<String, Double>> arrDelays = trainFlights
-        .apply(name + "airport->arrdelay", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
+  private static void writeFlights(String name, PCollection<Flight> outFlights, MyOptions options) {
+    outFlights.apply(name + "ToCsv", ParDo.of(new DoFn<Flight, String>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) throws Exception {
+        Flight f = c.element();
+        if (f.getField(INPUTCOLS.EVENT).equals("arrived")) {
+          c.output(f.toTrainingCsv());
+        }
+      }
+    })) //
+        .apply(name + "Write", TextIO.Write.to(options.getOutput() + name + "Flights").withSuffix(".csv"));
+  }
 
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            Flight f = c.element();
-            if (f.getField(Flight.INPUTCOLS.EVENT).equals("arrived")) {
-              String key = f.getField(Flight.INPUTCOLS.DEST);
-              double value = f.getFieldAsFloat(Flight.INPUTCOLS.ARR_DELAY);
-              c.output(KV.of(key, value));
-            }
-          }
-
-        })) //
-        .apply("avgArrDelay", Mean.perKey());
-
-    PCollectionView<Map<String, Double>> avgArrDelay = arrDelays.apply(name + "arrdelay->map", View.asMap());
-    
-    trainFlights = trainFlights.apply(name + "AddDelayInfo", ParDo.withSideInputs(avgDepDelay, avgArrDelay).of(new DoFn<Flight, Flight>() {
+  private static PCollection<Flight> addDelayInformation(PCollection<Flight> hourlyFlights,
+      PCollectionView<Map<String, Double>> avgDepDelay, PCollectionView<Map<String, Double>> avgArrDelay) {
+    hourlyFlights = hourlyFlights.apply("AddDelayInfo", ParDo.withSideInputs(avgDepDelay, avgArrDelay).of(new DoFn<Flight, Flight>() {
 
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
@@ -198,20 +210,30 @@ public class CreateTrainingDataset9 {
       }
 
     }));
-   
-    trainFlights.apply(name + "ToCsv", ParDo.of(new DoFn<Flight, String>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
-        Flight f = c.element();
-        if (f.getField(INPUTCOLS.EVENT).equals("arrived")) {
-          c.output(f.toTrainingCsv());
-        }
-      }
-    })) //
-        .apply("WriteFlights", TextIO.Write.to(options.getOutput() + name + "flights").withSuffix(".csv"));
+    return hourlyFlights;
+  }
+
+  private static PCollectionView<Map<String, Double>> computeAverageArrivalDelay(PCollection<Flight> hourlyFlights) {
+    PCollection<KV<String, Double>> arrDelays = hourlyFlights
+        .apply("airport->arrdelay", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
+
+          @ProcessElement
+          public void processElement(ProcessContext c) throws Exception {
+            Flight f = c.element();
+            if (f.getField(Flight.INPUTCOLS.EVENT).equals("arrived")) {
+              String key = f.getField(Flight.INPUTCOLS.DEST);
+              double value = f.getFieldAsFloat(Flight.INPUTCOLS.ARR_DELAY);
+              c.output(KV.of(key, value));
+            }
+          }
+
+        })) //
+        .apply("avgArrDelay", Mean.perKey());
+
+    PCollectionView<Map<String, Double>> avgArrDelay = arrDelays.apply("arrdelay->map", View.asMap());
+    return avgArrDelay;
   }
   
-  @SuppressWarnings("serial")
   private static PCollection<Flight> filterTrainOrTest(String name, PCollection<Flight> allFlights, PCollectionView<Map<String, String>> traindays, boolean trainOnly){
     return allFlights.apply(name, ParDo.withSideInputs(traindays).of(new DoFn<Flight, Flight>() {
       @ProcessElement
@@ -226,7 +248,6 @@ public class CreateTrainingDataset9 {
     }));
   }
 
-  @SuppressWarnings("serial")
   private static PCollectionView<Map<String, String>> getTrainDays(Pipeline p, String path) {
     return p.apply("Read trainday.csv", TextIO.Read.from(path)) //
         .apply("Parse trainday.csv", ParDo.of(new DoFn<String, KV<String, String>>() {
