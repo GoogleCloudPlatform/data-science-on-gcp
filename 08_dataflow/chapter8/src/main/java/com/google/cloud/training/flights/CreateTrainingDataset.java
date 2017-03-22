@@ -18,8 +18,6 @@ package com.google.cloud.training.flights;
 
 import java.util.Map;
 
-import org.apache.beam.runners.core.OldDoFn;
-import org.apache.beam.runners.core.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -36,6 +34,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -68,7 +67,7 @@ public class CreateTrainingDataset {
     void setFullDataset(boolean b);
 
     @Description("Path of the output directory")
-    @Default.String("gs://cloud-training-demos-ml/flights/chapter8/output_windowed/")
+    @Default.String("gs://cloud-training-demos-ml/flights/chapter8/output/")
     String getOutput();
 
     void setOutput(String s);
@@ -202,39 +201,37 @@ public class CreateTrainingDataset {
     lines.apply(name + "Write", TextIO.Write.to(options.getOutput() + name + "Flights").withSuffix(".csv"));
   }
 
-  private static class KeepEarliestWindow extends OldDoFn<Flight, Flight> implements RequiresWindowAccess {
-
-    @Override
-    public void processElement(ProcessContext c) throws Exception {
-      Instant endOfWindow = c.window().maxTimestamp();
-      Instant flightTimestamp = c.element().getEventTimestamp();
-      long msecs = endOfWindow.getMillis() - flightTimestamp.getMillis();
-      long THRESH = 5 * 60 * 1000; // 5 minutes
-      if (msecs < THRESH) {
-        c.output(c.element());
-      }
-    }
-
-  }
-
   private static PCollection<Flight> addDelayInformation(PCollection<Flight> hourlyFlights,
       PCollectionView<Map<String, Double>> avgDepDelay, PCollection<KV<String, Double>> avgArrDelay) {
 
     PCollection<KV<String, Flight>> airportFlights = //
         hourlyFlights //
+            .apply("InLatestSlice", ParDo.of(new DoFn<Flight, Flight>() {
+              @ProcessElement
+              public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+                Instant endOfWindow = window.maxTimestamp();
+                Instant flightTimestamp = c.element().getEventTimestamp();
+                long msecs = endOfWindow.getMillis() - flightTimestamp.getMillis();
+                long THRESH = 5 * 60 * 1000; // 5 minutes
+                if (msecs < THRESH) {
+                  c.output(c.element());
+                }
+              }
+            }))//
             .apply("AddDepDelay", ParDo.withSideInputs(avgDepDelay).of(new DoFn<Flight, Flight>() {
-              // TODO: check window timing and emit the flight only
+             
               @ProcessElement
               public void processElement(ProcessContext c) throws Exception {
+
                 Flight f = c.element().newCopy();
                 String depKey = f.getField(Flight.INPUTCOLS.ORIGIN) + ":" + f.getDepartureHour();
                 Double depDelay = c.sideInput(avgDepDelay).get(depKey);
                 f.avgDepartureDelay = (float) ((depDelay == null) ? 0 : depDelay);
                 c.output(f);
+
               }
 
             })) //
-            // TODO: .apply(ParDo.of(new KeepEarliestWindow())) //
             .apply("airport->Flight", ParDo.of(new DoFn<Flight, KV<String, Flight>>() {
               @ProcessElement
               public void processElement(ProcessContext c) throws Exception {
