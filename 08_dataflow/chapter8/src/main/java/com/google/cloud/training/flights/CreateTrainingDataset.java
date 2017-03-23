@@ -34,7 +34,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -208,7 +208,7 @@ public class CreateTrainingDataset {
         hourlyFlights //
             .apply("InLatestSlice", ParDo.of(new DoFn<Flight, Flight>() {
               @ProcessElement
-              public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+              public void processElement(ProcessContext c, IntervalWindow window) throws Exception {
                 Instant endOfWindow = window.maxTimestamp();
                 Instant flightTimestamp = c.element().getEventTimestamp();
                 long msecs = endOfWindow.getMillis() - flightTimestamp.getMillis();
