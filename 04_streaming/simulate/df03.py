@@ -59,10 +59,10 @@ def tz_correct(line, airport_timezones):
       yield ','.join(fields)
 
 if __name__ == '__main__':
-   pipeline = beam.Pipeline('DirectPipelineRunner')
+   pipeline = beam.Pipeline('DirectRunner')
 
    airports = (pipeline 
-      | 'airports:read' >> beam.Read(beam.io.TextFileSource('airports.csv.gz'))
+      | 'airports:read' >> beam.io.ReadFromText('airports.csv.gz')
       | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
       | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
    )

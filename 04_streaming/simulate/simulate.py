@@ -125,7 +125,7 @@ ORDER BY
    # create one Pub/Sub notification topic for each type of event
    psclient = pubsub.Client()
    topics = {}
-   for event_type in ['departed', 'arrived']:
+   for event_type in ['wheelsoff', 'arrived']:
        topics[event_type] = psclient.topic(event_type)
        if not topics[event_type].exists():
           topics[event_type].create()

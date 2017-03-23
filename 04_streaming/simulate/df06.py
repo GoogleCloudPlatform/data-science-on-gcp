@@ -84,6 +84,12 @@ def get_next_event(fields):
        for f in [16,17,18,19,21,22,25]:
           event[f] = ''  # not knowable at departure time
        yield event
+    if len(fields[17]) > 0:
+       event = list(fields) # copy
+       event.extend(['wheelsoff', fields[17]])
+       for f in [18,19,21,22,25]:
+          event[f] = ''  # not knowable at wheelsoff time
+       yield event
     if len(fields[21]) > 0:
        event = list(fields)
        event.extend(['arrived', fields[21]])
@@ -101,14 +107,14 @@ def create_row(fields):
 def run(project, bucket):
    argv = [
       '--project={0}'.format(project),
-      '--job_name=ch03timecorr',
+      '--job_name=ch04timecorr',
       '--save_main_session',
       '--staging_location=gs://{0}/flights/staging/'.format(bucket),
       '--temp_location=gs://{0}/flights/temp/'.format(bucket),
       '--setup_file=./setup.py',
       '--max_num_workers=10',
       '--autoscaling_algorithm=THROUGHPUT_BASED',
-      '--runner=DataflowPipelineRunner'
+      '--runner=DataflowRunner'
    ]
    airports_filename = 'gs://{}/flights/airports/airports.csv.gz'.format(bucket)
    flights_raw_files = 'gs://{}/flights/raw/*.csv'.format(bucket)
@@ -118,7 +124,7 @@ def run(project, bucket):
    pipeline = beam.Pipeline(argv=argv)
    
    airports = (pipeline 
-      | 'airports:read' >> beam.Read(beam.io.TextFileSource(airports_filename))
+      | 'airports:read' >> beam.io.ReadFromText(airports_filename)
       | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
       | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
    )
