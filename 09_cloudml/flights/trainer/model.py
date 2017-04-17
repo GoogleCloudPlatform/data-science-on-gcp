@@ -1,6 +1,7 @@
 from tensorflow.contrib.learn.python.learn.utils import saved_model_export_utils
 import tensorflow.contrib.learn as tflearn
 import tensorflow.contrib.layers as tflayers
+import tensorflow.contrib.metrics as tfmetrics
 
 import tensorflow as tf
 
@@ -42,8 +43,8 @@ def get_features():
     sparse = {
       'carrier': tflayers.sparse_column_with_keys('carrier',
                   keys='AS,VX,F9,UA,US,WN,HA,EV,MQ,DL,OO,B6,NK,AA'.split(',')),
-      'origin' : tflayers.sparse_column_with_hash_bucket('origin', hash_bucket_size=1000),
-      'dest'   : tflayers.sparse_column_with_hash_bucket('dest', hash_bucket_size=1000)
+      'origin' : tflayers.sparse_column_with_hash_bucket('origin', hash_bucket_size=1000), # FIXME
+      'dest'   : tflayers.sparse_column_with_hash_bucket('dest', hash_bucket_size=1000) #FIXME
     }
     return real, sparse
 
@@ -60,9 +61,9 @@ def linear_model(output_dir):
     all = {}
     all.update(real)
     all.update(sparse)
-    return tflearn.LinearClassifier(model_dir=output_dir,
-                                    feature_columns=all.values())
-
+    estimator = tflearn.LinearClassifier(model_dir=output_dir, feature_columns=all.values())
+    estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
+    return estimator
 
 def serving_input_fn():
     real, sparse = get_features()
