@@ -19,7 +19,7 @@ REQUIRED_PACKAGES = [
 ]
 
 setup(
-    name='babyweight',
+    name='flights',
     version='0.1',
     author = 'V Lakshmanan',
     author_email = 'lak@vlakshman.com',
