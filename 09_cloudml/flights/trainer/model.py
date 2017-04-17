@@ -11,7 +11,7 @@ LABEL_COLUMN = 'ontime'
 DEFAULTS     = [[0.0],[0.0],[0.0],[0.0],[0.0],[0.0],\
                 ['na'],[0.0],[0.0],[0.0],[0.0],['na'],['na']]
 
-def read_dataset(filename, mode=tf.contrib.learn.ModeKeys.EVAL, batch_size=512, num_training_epochs=10):
+def read_dataset(filename, mode=tf.contrib.learn.ModeKeys.EVAL, batch_size=512, num_training_epochs=5):
 
   # the actual input function passed to TensorFlow
   def _input_fn():
@@ -33,7 +33,7 @@ def read_dataset(filename, mode=tf.contrib.learn.ModeKeys.EVAL, batch_size=512, 
   
   return _input_fn
 
-def get_features():
+def get_features_all():
     real = {
       colname : tflayers.real_valued_column(colname) \
           for colname in \
@@ -46,6 +46,26 @@ def get_features():
       'origin' : tflayers.sparse_column_with_hash_bucket('origin', hash_bucket_size=1000), # FIXME
       'dest'   : tflayers.sparse_column_with_hash_bucket('dest', hash_bucket_size=1000) #FIXME
     }
+    return real, sparse
+
+def get_features_ch7():
+    """Using only the three inputs we originally used in Chapter 7"""
+    real = {
+      colname : tflayers.real_valued_column(colname) \
+          for colname in \
+            ('dep_delay,taxiout,distance').split(',')
+    }
+    sparse = {}
+    return real, sparse
+
+def get_features():
+    """Using only the three inputs we originally used in Chapter 7"""
+    real = {
+      colname : tflayers.real_valued_column(colname) \
+          for colname in \
+            ('dep_delay,taxiout,distance,avg_dep_delay,avg_arr_delay').split(',')
+    }
+    sparse = {}
     return real, sparse
 
 def wide_and_deep_model(output_dir):
