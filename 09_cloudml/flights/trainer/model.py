@@ -58,7 +58,7 @@ def get_features_ch7():
     sparse = {}
     return real, sparse
 
-def get_features():
+def get_features_ch7():
     """Using only the three inputs we originally used in Chapter 7"""
     real = {
       colname : tflayers.real_valued_column(colname) \
@@ -67,6 +67,9 @@ def get_features():
     }
     sparse = {}
     return real, sparse
+
+def get_features():
+    return get_features_all()
 
 def wide_and_deep_model(output_dir):
     deep, wide = get_features()
@@ -106,6 +109,9 @@ def serving_input_fn():
       None,
       feature_placeholders)
 
+def my_rmse(predictions, labels, **args):
+  prob_ontime = predictions[:,1]
+  return tfmetrics.streaming_root_mean_squared_error(prob_ontime, labels, **args)
 
 def make_experiment_fn(traindata, evaldata, **args):
   def _experiment_fn(output_dir):
@@ -118,6 +124,9 @@ def make_experiment_fn(traindata, evaldata, **args):
             default_output_alternative_key=None,
             exports_to_keep=1
         )],
+        eval_metrics = {
+            'rmse' : tflearn.MetricSpec(metric_fn=my_rmse, prediction_key='probabilities')
+        },
         **args
     )
   return _experiment_fn
