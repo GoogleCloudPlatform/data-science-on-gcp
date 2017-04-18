@@ -21,4 +21,4 @@ gcloud ml-engine jobs submit training $JOBNAME \
   --scale-tier=STANDARD_1 \
   -- \
    --output_dir=$OUTPUT_DIR \
-   --traindata $DATA_DIR/train$PATTERN --evaldata $DATA_DIR/test$PATTERN
+   --traindata $DATA_DIR/train$PATTERN --evaldata $DATA_DIR/test$PATTERN --num_training_epochs=5

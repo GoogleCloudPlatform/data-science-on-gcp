@@ -11,7 +11,7 @@ LABEL_COLUMN = 'ontime'
 DEFAULTS     = [[0.0],[0.0],[0.0],[0.0],[0.0],[0.0],\
                 ['na'],[0.0],[0.0],[0.0],[0.0],['na'],['na']]
 
-def read_dataset(filename, mode=tf.contrib.learn.ModeKeys.EVAL, batch_size=512, num_training_epochs=5):
+def read_dataset(filename, mode=tf.contrib.learn.ModeKeys.EVAL, batch_size=512, num_training_epochs=10):
 
   # the actual input function passed to TensorFlow
   def _input_fn():
@@ -33,7 +33,7 @@ def read_dataset(filename, mode=tf.contrib.learn.ModeKeys.EVAL, batch_size=512, 
   
   return _input_fn
 
-def get_features_all():
+def get_features_raw():
     real = {
       colname : tflayers.real_valued_column(colname) \
           for colname in \
@@ -58,8 +58,8 @@ def get_features_ch7():
     sparse = {}
     return real, sparse
 
-def get_features_ch7():
-    """Using only the three inputs we originally used in Chapter 7"""
+def get_features_ch8():
+    """Using the three inputs we originally used in Chapter 7, plus the time averages computed in Chapter 8"""
     real = {
       colname : tflayers.real_valued_column(colname) \
           for colname in \
@@ -69,7 +69,9 @@ def get_features_ch7():
     return real, sparse
 
 def get_features():
-    return get_features_all()
+    return get_features_raw()
+    #return get_features_ch7()
+    #return get_features_ch8()
 
 def wide_and_deep_model(output_dir):
     deep, wide = get_features()
@@ -87,6 +89,38 @@ def linear_model(output_dir):
     estimator = tflearn.LinearClassifier(model_dir=output_dir, feature_columns=all.values())
     estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
     return estimator
+
+def dnn_model(output_dir):
+    real, sparse = get_features()
+    all = {}
+    all.update(real)
+
+    # create embeddings of the sparse columns
+    def create_embed(col):
+        import numpy as np
+        nbins = col.bucket_size
+        if nbins is not None:
+           dim = 1 + int(round(np.log2(nbins)))
+        else:
+           dim = 3
+        print 'Embedding colname={} bins={} dims={}'.format(col.column_name, nbins, dim)
+        return tflayers.embedding_column(col, dimension=dim)
+    embed = {
+       colname : create_embed(col) \
+          for colname, col in sparse.items()
+    }
+    all.update(embed)
+
+    estimator = tflearn.DNNClassifier(model_dir=output_dir,
+                                      feature_columns=all.values(),
+                                      hidden_units=[64, 16, 4])
+    estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
+    return estimator
+
+def get_model(output_dir):
+    #return linear_model(output_dir)
+    return dnn_model(output_dir)
+
 
 def serving_input_fn():
     real, sparse = get_features()
@@ -113,11 +147,11 @@ def my_rmse(predictions, labels, **args):
   prob_ontime = predictions[:,1]
   return tfmetrics.streaming_root_mean_squared_error(prob_ontime, labels, **args)
 
-def make_experiment_fn(traindata, evaldata, **args):
+def make_experiment_fn(traindata, evaldata, num_training_epochs, **args):
   def _experiment_fn(output_dir):
     return tflearn.Experiment(
-        linear_model(output_dir),
-        train_input_fn=read_dataset(traindata, mode=tf.contrib.learn.ModeKeys.TRAIN),
+        get_model(output_dir),
+        train_input_fn=read_dataset(traindata, mode=tf.contrib.learn.ModeKeys.TRAIN, num_training_epochs=num_training_epochs),
         eval_input_fn=read_dataset(evaldata),
         export_strategies=[saved_model_export_utils.make_export_strategy(
             serving_input_fn,

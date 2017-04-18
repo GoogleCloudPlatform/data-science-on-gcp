@@ -44,6 +44,12 @@ if __name__ == '__main__':
       help='Output directory',
       required=True
   )
+  parser.add_argument(
+      '--num_training_epochs',
+      help='Number of passes through training dataset',
+      type=int,
+      default=10
+  )
 
   # parse args
   args = parser.parse_args()
