@@ -2,8 +2,8 @@ from tensorflow.contrib.learn.python.learn.utils import saved_model_export_utils
 import tensorflow.contrib.learn as tflearn
 import tensorflow.contrib.layers as tflayers
 import tensorflow.contrib.metrics as tfmetrics
-
 import tensorflow as tf
+import numpy as np
 
 CSV_COLUMNS  = ('ontime,dep_delay,taxiout,distance,avg_dep_delay,avg_arr_delay' + \
                 ',carrier,dep_lat,dep_lon,arr_lat,arr_lon,origin,dest').split(',')
@@ -73,13 +73,47 @@ def get_features():
     #return get_features_ch7()
     #return get_features_ch8()
 
-def wide_and_deep_model(output_dir):
-    deep, wide = get_features()
-    return \
+def wide_and_deep_model(output_dir, nbuckets=5):
+    real, sparse = get_features()
+
+    # the lat/lon columns can be discretized to yield "air traffic corridors"
+    latbuckets = np.linspace(20.0, 50.0, nbuckets).tolist()  # USA
+    lonbuckets = np.linspace(-120.0, -70.0, nbuckets).tolist() # USA
+    disc = {}
+    disc.update({
+       'd_{}'.format(key) : tflayers.bucketized_column(real[key], latbuckets) \
+          for key in ['dep_lat', 'arr_lat']
+    })
+    disc.update({
+       'd_{}'.format(key) : tflayers.bucketized_column(real[key], lonbuckets) \
+          for key in ['dep_lon', 'arr_lon']
+    })
+
+    # cross columns that make sense in combination
+    sparse['dep_loc'] = tflayers.crossed_column([disc['d_dep_lat'], disc['d_dep_lon']],\
+                                                nbuckets*nbuckets)
+    sparse['arr_loc'] = tflayers.crossed_column([disc['d_arr_lat'], disc['d_arr_lon']],\
+                                                nbuckets*nbuckets)
+    sparse['dep_arr'] = tflayers.crossed_column([sparse['dep_loc'], sparse['arr_loc']],\
+                                                nbuckets ** 4)
+    sparse['ori_dest'] = tflayers.crossed_column([sparse['origin'], sparse['dest']], \
+                                                hash_bucket_size=1000)
+    
+    # create embeddings of all the sparse columns
+    embed = {
+       colname : create_embed(col) \
+          for colname, col in sparse.items()
+    }
+    real.update(embed)
+ 
+    estimator = \ 
         tflearn.DNNLinearCombinedClassifier(model_dir=output_dir,
-                                           linear_feature_columns=wide,
-                                           dnn_feature_columns=deep,
-                                           dnn_hidden_units=[64, 32])
+                                           linear_feature_columns=sparse.values(),
+                                           dnn_feature_columns=real.values(),
+                                           #dnn_hidden_units=[64, 32])
+                                           hidden_units=[64, 16, 4])
+    estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
+    return estimator
    
 def linear_model(output_dir):
     real, sparse = get_features()
@@ -90,21 +124,20 @@ def linear_model(output_dir):
     estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
     return estimator
 
+def create_embed(sparse_col):
+    dim = 10 # default
+    if hasattr(sparse_col, 'bucket_size'):
+       nbins = sparse_col.bucket_size
+       if nbins is not None:
+          dim = 1 + int(round(np.log2(nbins)))
+    return tflayers.embedding_column(sparse_col, dimension=dim)
+
 def dnn_model(output_dir):
     real, sparse = get_features()
     all = {}
     all.update(real)
 
     # create embeddings of the sparse columns
-    def create_embed(col):
-        import numpy as np
-        nbins = col.bucket_size
-        if nbins is not None:
-           dim = 1 + int(round(np.log2(nbins)))
-        else:
-           dim = 3
-        print 'Embedding colname={} bins={} dims={}'.format(col.column_name, nbins, dim)
-        return tflayers.embedding_column(col, dimension=dim)
     embed = {
        colname : create_embed(col) \
           for colname, col in sparse.items()
@@ -119,7 +152,8 @@ def dnn_model(output_dir):
 
 def get_model(output_dir):
     #return linear_model(output_dir)
-    return dnn_model(output_dir)
+    #return dnn_model(output_dir)
+    return wide_and_deep_model(output_dir)
 
 
 def serving_input_fn():
