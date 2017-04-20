@@ -73,7 +73,10 @@ def get_features():
     #return get_features_ch7()
     #return get_features_ch8()
 
-def wide_and_deep_model(output_dir, nbuckets=5):
+def parse_hidden_units(s):
+    return [int(item) for item in s.split(',')]
+
+def wide_and_deep_model(output_dir, nbuckets=5, hidden_units='64,32'):
     real, sparse = get_features()
 
     # the lat/lon columns can be discretized to yield "air traffic corridors"
@@ -106,12 +109,11 @@ def wide_and_deep_model(output_dir, nbuckets=5):
     }
     real.update(embed)
  
-    estimator = \ 
+    estimator = \
         tflearn.DNNLinearCombinedClassifier(model_dir=output_dir,
                                            linear_feature_columns=sparse.values(),
                                            dnn_feature_columns=real.values(),
-                                           #dnn_hidden_units=[64, 32])
-                                           hidden_units=[64, 16, 4])
+                                           dnn_hidden_units=parse_hidden_units(hidden_units))
     estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
     return estimator
    
@@ -150,10 +152,10 @@ def dnn_model(output_dir):
     estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
     return estimator
 
-def get_model(output_dir):
+def get_model(output_dir, nbuckets, hidden_units):
     #return linear_model(output_dir)
     #return dnn_model(output_dir)
-    return wide_and_deep_model(output_dir)
+    return wide_and_deep_model(output_dir, nbuckets, hidden_units)
 
 
 def serving_input_fn():
@@ -181,11 +183,12 @@ def my_rmse(predictions, labels, **args):
   prob_ontime = predictions[:,1]
   return tfmetrics.streaming_root_mean_squared_error(prob_ontime, labels, **args)
 
-def make_experiment_fn(traindata, evaldata, num_training_epochs, **args):
+def make_experiment_fn(traindata, evaldata, num_training_epochs,
+                       batch_size, nbuckets, hidden_units, **args):
   def _experiment_fn(output_dir):
     return tflearn.Experiment(
-        get_model(output_dir),
-        train_input_fn=read_dataset(traindata, mode=tf.contrib.learn.ModeKeys.TRAIN, num_training_epochs=num_training_epochs),
+        get_model(output_dir, nbuckets, hidden_units),
+        train_input_fn=read_dataset(traindata, mode=tf.contrib.learn.ModeKeys.TRAIN, num_training_epochs=num_training_epochs, batch_size=batch_size),
         eval_input_fn=read_dataset(evaldata),
         export_strategies=[saved_model_export_utils.make_export_strategy(
             serving_input_fn,
@@ -193,7 +196,8 @@ def make_experiment_fn(traindata, evaldata, num_training_epochs, **args):
             exports_to_keep=1
         )],
         eval_metrics = {
-            'rmse' : tflearn.MetricSpec(metric_fn=my_rmse, prediction_key='probabilities')
+	    'rmse' : tflearn.MetricSpec(metric_fn=my_rmse, prediction_key='probabilities'),
+            'training/hptuning/metric' : tflearn.MetricSpec(metric_fn=my_rmse, prediction_key='probabilities')
         },
         **args
     )

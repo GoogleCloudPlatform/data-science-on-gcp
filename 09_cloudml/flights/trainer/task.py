@@ -17,6 +17,7 @@
 
 import argparse
 import model
+import json
 import os
 
 import tensorflow as tf
@@ -51,6 +52,25 @@ if __name__ == '__main__':
       default=10
   )
 
+  # for hyper-parameter tuning
+  parser.add_argument(
+      '--batch_size',
+      help='Number of examples to compute gradient on',
+      type=int,
+      default=512
+  )
+  parser.add_argument(
+      '--nbuckets',
+      help='Number of bins into which to discretize lats and lons',
+      type=int,
+      default=5
+  )
+  parser.add_argument(
+      '--hidden_units',
+      help='Architecture of DNN part of wide-and-deep network',
+      default='64,16'
+  )
+
   # parse args
   args = parser.parse_args()
   arguments = args.__dict__
@@ -59,6 +79,15 @@ if __name__ == '__main__':
   arguments.pop('job-dir', None)
   arguments.pop('job_dir', None)
   output_dir = arguments.pop('output_dir')
+
+  # when hp-tuning, we need to use different output directories for different runs
+  output_dir = os.path.join(
+      output_dir,
+      json.loads(
+          os.environ.get('TF_CONFIG', '{}')
+      ).get('task', {}).get('trial', '')
+  )
+ 
 
   # run
   tf.logging.set_verbosity(tf.logging.INFO)
