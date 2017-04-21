@@ -76,7 +76,7 @@ def get_features():
 def parse_hidden_units(s):
     return [int(item) for item in s.split(',')]
 
-def wide_and_deep_model(output_dir, nbuckets=5, hidden_units='64,32'):
+def wide_and_deep_model(output_dir, nbuckets=5, hidden_units='64,32', learning_rate=0.01):
     real, sparse = get_features()
 
     # the lat/lon columns can be discretized to yield "air traffic corridors"
@@ -113,7 +113,9 @@ def wide_and_deep_model(output_dir, nbuckets=5, hidden_units='64,32'):
         tflearn.DNNLinearCombinedClassifier(model_dir=output_dir,
                                            linear_feature_columns=sparse.values(),
                                            dnn_feature_columns=real.values(),
-                                           dnn_hidden_units=parse_hidden_units(hidden_units))
+                                           dnn_hidden_units=parse_hidden_units(hidden_units),
+                                           linear_optimizer=tf.train.FtrlOptimizer(learning_rate=learning_rate),
+                                           dnn_optimizer=tf.train.AdagradOptimizer(learning_rate=learning_rate*0.25))
     estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
     return estimator
    
@@ -152,10 +154,10 @@ def dnn_model(output_dir):
     estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
     return estimator
 
-def get_model(output_dir, nbuckets, hidden_units):
+def get_model(output_dir, nbuckets, hidden_units, learning_rate):
     #return linear_model(output_dir)
     #return dnn_model(output_dir)
-    return wide_and_deep_model(output_dir, nbuckets, hidden_units)
+    return wide_and_deep_model(output_dir, nbuckets, hidden_units, learning_rate)
 
 
 def serving_input_fn():
@@ -184,10 +186,10 @@ def my_rmse(predictions, labels, **args):
   return tfmetrics.streaming_root_mean_squared_error(prob_ontime, labels, **args)
 
 def make_experiment_fn(traindata, evaldata, num_training_epochs,
-                       batch_size, nbuckets, hidden_units, **args):
+                       batch_size, nbuckets, hidden_units, learning_rate, **args):
   def _experiment_fn(output_dir):
     return tflearn.Experiment(
-        get_model(output_dir, nbuckets, hidden_units),
+        get_model(output_dir, nbuckets, hidden_units, learning_rate),
         train_input_fn=read_dataset(traindata, mode=tf.contrib.learn.ModeKeys.TRAIN, num_training_epochs=num_training_epochs, batch_size=batch_size),
         eval_input_fn=read_dataset(evaldata),
         export_strategies=[saved_model_export_utils.make_export_strategy(

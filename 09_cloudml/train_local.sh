@@ -8,4 +8,4 @@ export PYTHONPATH=${PYTHONPATH}:${PWD}/flights
 python -m trainer.task \
    --output_dir=$OUTPUT_DIR \
    --job-dir=./tmp \
-  --traindata $DATA_DIR/train* --evaldata $DATA_DIR/test*
+  --traindata $DATA_DIR/train* --evaldata $DATA_DIR/test* --learning_rate=0.001
