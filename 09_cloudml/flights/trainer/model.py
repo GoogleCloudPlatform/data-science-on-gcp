@@ -113,9 +113,9 @@ def wide_and_deep_model(output_dir, nbuckets=5, hidden_units='64,32', learning_r
         tflearn.DNNLinearCombinedClassifier(model_dir=output_dir,
                                            linear_feature_columns=sparse.values(),
                                            dnn_feature_columns=real.values(),
-                                           dnn_hidden_units=parse_hidden_units(hidden_units),
-                                           linear_optimizer=tf.train.FtrlOptimizer(learning_rate=learning_rate),
-                                           dnn_optimizer=tf.train.AdagradOptimizer(learning_rate=learning_rate*0.25))
+                                           dnn_hidden_units=parse_hidden_units(hidden_units))
+                                           #linear_optimizer=tf.train.FtrlOptimizer(learning_rate=learning_rate),
+                                           #dnn_optimizer=tf.train.AdagradOptimizer(learning_rate=learning_rate*0.25))
     estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
     return estimator
    

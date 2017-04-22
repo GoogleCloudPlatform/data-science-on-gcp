@@ -2,8 +2,8 @@ trainingInput:
   scaleTier: STANDARD_1
   hyperparameters:
     goal: MINIMIZE
-    maxTrials: 50
-    maxParallelTrials: 5
+    maxTrials: 15
+    maxParallelTrials: 3
     params:
     - parameterName: batch_size
       type: INTEGER
