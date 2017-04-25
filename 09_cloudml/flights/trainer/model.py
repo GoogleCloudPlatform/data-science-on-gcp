@@ -161,15 +161,14 @@ def get_model(output_dir, nbuckets, hidden_units, learning_rate):
 
 
 def serving_input_fn():
-    real, sparse = get_features()
-    
     feature_placeholders = {
       key : tf.placeholder(tf.float32, [None]) \
-        for key in real.keys()
+        for key in ('dep_delay,taxiout,distance,avg_dep_delay,avg_arr_delay' +
+             ',dep_lat,dep_lon,arr_lat,arr_lon').split(',')
     }
     feature_placeholders.update( {
       key : tf.placeholder(tf.string, [None]) \
-        for key in sparse.keys()
+        for key in 'carrier,origin,dest'.split(',')
     } )
 
     features = {
@@ -201,6 +200,7 @@ def make_experiment_fn(traindata, evaldata, num_training_epochs,
 	    'rmse' : tflearn.MetricSpec(metric_fn=my_rmse, prediction_key='probabilities'),
             'training/hptuning/metric' : tflearn.MetricSpec(metric_fn=my_rmse, prediction_key='probabilities')
         },
+        min_eval_frequency = 100,
         **args
     )
   return _experiment_fn

@@ -68,13 +68,13 @@ if __name__ == '__main__':
   parser.add_argument(
       '--hidden_units',
       help='Architecture of DNN part of wide-and-deep network',
-      default='64,16'
+      default='64,64,64,16,4'
   )
   parser.add_argument(
       '--learning_rate',
       help='Controls size of step in gradient descent.',
       type=float,
-      default=0.01
+      default=0.0606
   )
 
   # parse args

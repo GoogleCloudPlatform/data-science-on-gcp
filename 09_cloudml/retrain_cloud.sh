@@ -6,12 +6,12 @@ OUTPUT_DIR=gs://${BUCKET}/flights/chapter9/output
 DATA_DIR=gs://${BUCKET}/flights/chapter8/output
 JOBNAME=flights_$(date -u +%y%m%d_%H%M%S)
 
-#PATTERN="Flights-00001*"
-PATTERN="Flights*"
 
-echo "Launching training job ... trained model will be in $OUTPUT_DIR"
+TRAIN_FILE=$DATA_DIR/trainFlights-00007*
+TEST_FILE=$DATA_DIR/testFlights-00001*
 
-gsutil -m rm -rf $OUTPUT_DIR
+echo "Restarting training in $OUTPUT_DIR"
+
 gcloud ml-engine jobs submit training $JOBNAME \
   --region=$REGION \
   --module-name=trainer.task \
@@ -21,4 +21,4 @@ gcloud ml-engine jobs submit training $JOBNAME \
   --scale-tier=STANDARD_1 \
   -- \
    --output_dir=$OUTPUT_DIR \
-   --traindata $DATA_DIR/train$PATTERN --evaldata $DATA_DIR/test$PATTERN --num_training_epochs=5
+   --traindata $TRAIN_FILE --evaldata $TEST_FILE --num_training_epochs=1
