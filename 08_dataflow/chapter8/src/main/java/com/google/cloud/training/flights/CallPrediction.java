@@ -13,17 +13,9 @@ import com.google.api.client.http.HttpContent;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.UriTemplate;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.discovery.Discovery;
-import com.google.api.services.discovery.model.JsonSchema;
-import com.google.api.services.discovery.model.RestDescription;
-import com.google.api.services.discovery.model.RestMethod;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-@SuppressWarnings("unused")
 public class CallPrediction {
 
   static class Instance {
@@ -85,25 +77,19 @@ public class CallPrediction {
     String json = gson.toJson(req, Request.class);
     // System.out.println(json);
 
-    // use discovery service to get prediction method
-    HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-    JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
-    Discovery discovery = new Discovery.Builder(httpTransport, jsonFactory, null).build();
-    RestDescription api = discovery.apis().getRest("ml", "v1").execute();
-    RestMethod method = api.getResources().get("projects").getMethods().get("predict");
-
-    // connect to our model
-    JsonSchema param = new JsonSchema();
-    param.set("name", String.format("projects/%s/models/%s/versions/%s", PROJECT, MODEL, VERSION));
-    GenericUrl url = new GenericUrl(UriTemplate.expand(api.getBaseUrl() + method.getPath(), param, true));
+    // our service's URL
+    String endpoint = "https://ml.googleapis.com/v1/projects/" 
+       + String.format("%s/models/%s/versions/%s:predict", PROJECT, MODEL, VERSION);
+    GenericUrl url = new GenericUrl(endpoint);
 
     // create request
-    HttpContent content = new ByteArrayContent("application/json", json.getBytes());
     GoogleCredential credential = GoogleCredential.getApplicationDefault();
+    HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
     HttpRequestFactory requestFactory = httpTransport.createRequestFactory(credential);
-    HttpRequest request = requestFactory.buildRequest(method.getHttpMethod(), url, content);
+    HttpContent content = new ByteArrayContent("application/json", json.getBytes());
+    HttpRequest request = requestFactory.buildRequest("POST", url, content);
     request.setReadTimeout(10000);
-
+           
     // parse response
     String response = request.execute().parseAsString();
     // System.out.println(response);
@@ -152,7 +138,7 @@ public class CallPrediction {
 
     // send request to service
     Response resp = sendRequest(request);
-    System.out.println(resp.getOntimeProbability(-1));
+    System.out.println(resp.getOntimeProbability(-1)[0]);
     
     Flight f = Flight.fromCsv("2015-01-04,EV,20366,EV,2563,11298,1129803,30194,DFW,11140,1114004,31140,CRP,2015-01-04T13:25:00,2015-01-04T13:33:00,8.00,16.00,2015-01-04T13:49:00,,,2015-01-04T14:45:00,,,0.00,,,354.00,32.89694444,-97.03805556,-21600.0,27.77083333,-97.50111111,-21600.0,wheelsoff,2015-01-04T13:49:00");
     f.avgArrivalDelay = 13;
