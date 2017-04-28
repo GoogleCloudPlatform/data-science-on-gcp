@@ -50,7 +50,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.training.flights.Flight.INPUTCOLS;
 
 /**
- * Runs on the cloud on 3 days of data, and takes about 10 minutes to process.
+ * Efficient version that uses CoGroupByKey.
  * 
  * @author vlakshmanan
  *
@@ -201,7 +201,7 @@ public class CreateTrainingDataset {
     lines.apply(name + "Write", TextIO.Write.to(options.getOutput() + name + "Flights").withSuffix(".csv"));
   }
 
-  private static PCollection<Flight> addDelayInformation(PCollection<Flight> hourlyFlights,
+  static PCollection<Flight> addDelayInformation(PCollection<Flight> hourlyFlights,
       PCollectionView<Map<String, Double>> avgDepDelay, PCollection<KV<String, Double>> avgArrDelay) {
 
     PCollection<KV<String, Flight>> airportFlights = //
@@ -263,7 +263,7 @@ public class CreateTrainingDataset {
     return result;
   }
 
-  private static PCollection<KV<String, Double>> computeAverageArrivalDelay(PCollection<Flight> hourlyFlights) {
+  static PCollection<KV<String, Double>> computeAverageArrivalDelay(PCollection<Flight> hourlyFlights) {
     PCollection<KV<String, Double>> arrDelays = hourlyFlights
         .apply("airport->arrdelay", ParDo.of(new DoFn<Flight, KV<String, Double>>() {
 
@@ -271,9 +271,13 @@ public class CreateTrainingDataset {
           public void processElement(ProcessContext c) throws Exception {
             Flight f = c.element();
             if (f.getField(Flight.INPUTCOLS.EVENT).equals("arrived")) {
-              String key = f.getField(Flight.INPUTCOLS.DEST);
-              double value = f.getFieldAsFloat(Flight.INPUTCOLS.ARR_DELAY);
-              c.output(KV.of(key, value));
+              try {
+                String key = f.getField(Flight.INPUTCOLS.DEST);
+                double value = f.getFieldAsFloat(Flight.INPUTCOLS.ARR_DELAY);
+                c.output(KV.of(key, value));
+              } catch (NumberFormatException e) {
+                // ignore exceptions around not being able to parse
+              }
             }
           }
 

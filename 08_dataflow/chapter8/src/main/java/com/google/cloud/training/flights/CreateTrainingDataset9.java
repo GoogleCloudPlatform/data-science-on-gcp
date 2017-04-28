@@ -44,7 +44,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.training.flights.Flight.INPUTCOLS;
 
 /**
- * Runs on the cloud on 3 days of data, and takes about 10 minutes to process.
+ * Runs on the cloud on 3 days of data, and takes about 10 minutes to process but is not able to process larger datasets.
  * 
  * @author vlakshmanan
  *

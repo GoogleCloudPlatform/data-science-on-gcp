@@ -47,6 +47,10 @@ public class Flight {
     }
     return null; // malformed
   }
+  
+  public String[] getFields() {
+    return fields;
+  }
 
   public boolean isNotDiverted() {
     String col = getField(INPUTCOLS.DIVERTED);
@@ -66,6 +70,15 @@ public class Flight {
     return Float.parseFloat(fields[col.ordinal()]);
   }
 
+  public float getFieldAsFloat(INPUTCOLS col, float defaultValue) {
+    String s = fields[col.ordinal()];
+    if (s.length() > 0) {
+      return Float.parseFloat(s);
+    } else {
+      return defaultValue;
+    }
+  }
+  
   private static DateTimeFormatter fmt = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
 
   public int getDepartureHour() {
