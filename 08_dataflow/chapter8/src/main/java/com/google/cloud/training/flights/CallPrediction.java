@@ -9,10 +9,12 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler;
 import com.google.api.client.http.HttpContent;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpTransport;
+import com.google.api.client.util.ExponentialBackOff;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -88,6 +90,7 @@ public class CallPrediction {
     HttpRequestFactory requestFactory = httpTransport.createRequestFactory(credential);
     HttpContent content = new ByteArrayContent("application/json", json.getBytes());
     HttpRequest request = requestFactory.buildRequest("POST", url, content);
+    request.setUnsuccessfulResponseHandler(new HttpBackOffUnsuccessfulResponseHandler(new ExponentialBackOff()));
     request.setReadTimeout(10000);
            
     // parse response

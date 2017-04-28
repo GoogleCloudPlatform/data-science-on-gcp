@@ -16,7 +16,7 @@
 
 package com.google.cloud.training.flights;
 
-import java.rmi.UnexpectedException;
+import java.text.DecimalFormat;
 import java.util.Map;
 
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -32,7 +32,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -46,7 +45,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.training.flights.Flight.INPUTCOLS;
 
 /**
- * Listens to Pub/Sub, adds prediction and writes out data to Bigtable.
+ * Listens to Pub/Sub, adds prediction and writes out data to Datastore.
  * 
  * @author vlakshmanan
  *
@@ -62,11 +61,11 @@ public class AddRealtimePrediction {
 
     void setOutput(String s);
 
-     @Description("Path to average departure delay file")
-     @Default.String("gs://cloud-training-demos-ml/flights/chapter8/output/delays.csv")
-     String getDelayPath();
-    
-     void setDelayPath(String s);
+    @Description("Path to average departure delay file")
+    @Default.String("gs://cloud-training-demos-ml/flights/chapter8/output/delays.csv")
+    String getDelayPath();
+
+    void setDelayPath(String s);
   }
 
   private static PCollectionView<Map<String, Double>> readAverageDepartureDelay(Pipeline p, String path) {
@@ -81,7 +80,7 @@ public class AddRealtimePrediction {
         })) //
         .apply("toView", View.asMap());
   }
-  
+
   public static void main(String[] args) {
     MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
     // options.setStreaming(true);
@@ -130,96 +129,114 @@ public class AddRealtimePrediction {
   }
 
   private static void writeFlights(PCollection<Flight> outFlights, MyOptions options) {
-    //PCollection<String> lines = toCsvOneByOne(outFlights);
-    PCollection<String> lines = addPredictionInBatches(outFlights);
-    lines.apply("Write", TextIO.Write.to(options.getOutput() + "flightPreds").withSuffix(".csv"));
+    // PCollection<String> lines = addPredictionOneByOne(outFlights);
+    try {
+      PCollection<String> lines = addPredictionInBatches(outFlights);
+      lines.apply("Write", TextIO.Write.to(options.getOutput() + "flightPreds").withSuffix(".csv"));
+    } catch (Throwable t) {
+      LOG.warn("Inference failed", t);
+    }
   }
 
-  private static PCollection<String> addPredictionOneByOne(PCollection<Flight> outFlights) {
+/*  private static PCollection<String> addPredictionOneByOne(PCollection<Flight> outFlights) {
     PCollection<String> lines = outFlights //
         .apply("Inference", ParDo.of(new DoFn<Flight, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
             Flight f = c.element();
-            String ontime = "unset";
+            String ontime = "";
             try {
-              if (f.getField(INPUTCOLS.EVENT).equals("arrived")) {
-                // actual ontime performance
-                ontime = Double.toString(f.getFieldAsFloat(INPUTCOLS.ARR_DELAY, 0) < 15? 1 : 0);
-              } else {
-                // wheelsoff: predict ontime arrival probability
-                ontime = Double.toString(CallPrediction.predictOntimeProbability(f, -5.0));
+              if (f.isNotCancelled() && f.isNotDiverted()) {
+                if (f.getField(INPUTCOLS.EVENT).equals("arrived")) {
+                  // actual ontime performance
+                  ontime = Double.toString(f.getFieldAsFloat(INPUTCOLS.ARR_DELAY, 0) < 15 ? 1 : 0);
+                } else {
+                  // wheelsoff: predict ontime arrival probability
+                  ontime = Double.toString(CallPrediction.predictOntimeProbability(f, -5.0));
+                }
               }
             } catch (Throwable t) {
-              LOG.warn("Prediction failed: " + t);
+              LOG.warn("Prediction failed: ", t);
               ontime = t.getMessage();
             }
             // create output CSV
             String csv = String.join(",", f.getFields());
             csv = csv + "," + ontime;
-            c.output(csv); // actual ontime performance
+            c.output(csv);
+          }
+        }));
+    return lines;
+  }*/
+
+  private static PCollection<String> addPredictionInBatches(PCollection<Flight> outFlights) {
+    final int NUM_BATCHES = 2;
+    PCollection<String> lines = outFlights //
+        .apply("Batch->Flight", ParDo.of(new DoFn<Flight, KV<String, Flight>>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) throws Exception {
+            Flight f = c.element();
+            String key;
+            if (f.isNotCancelled() && f.isNotDiverted()) {
+              key = f.getField(INPUTCOLS.EVENT); // "arrived" "wheelsoff"
+            } else {
+              key = "ignored";
+            }
+            // add a randomized part to provide batching capability
+            key = key + " " + (System.identityHashCode(f) % NUM_BATCHES);
+            c.output(KV.of(key, f));
+          }
+        })) //
+        .apply("CreateBatches", GroupByKey.<String, Flight> create()) // within window
+        .apply("Inference", ParDo.of(new DoFn<KV<String, Iterable<Flight>>, String>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) throws Exception {
+            String key = c.element().getKey();
+            Iterable<Flight> flights = c.element().getValue();
+
+            // write out all the ignored events as-is
+            if (key.startsWith("ignored")) {
+              for (Flight f : flights) {
+                c.output(createOutput(f, ""));
+              }
+              return;
+            }
+
+            // for arrived events, emit actual ontime performance
+            if (key.startsWith("arrived")) {
+              for (Flight f : flights) {
+                double ontime = f.getFieldAsFloat(INPUTCOLS.ARR_DELAY, 0) < 15 ? 1 : 0;
+                c.output(createOutput(f, ontime));
+              }
+              return;
+            }
+
+            // do ml inference for wheelsoff events, but as batch
+            CallPrediction.Request request = new CallPrediction.Request();
+            for (Flight f : flights) {
+              request.instances.add(new CallPrediction.Instance(f));
+            }
+            CallPrediction.Response resp = CallPrediction.sendRequest(request);
+            double[] result = resp.getOntimeProbability(-5);
+            // append probability
+            int resultno = 0;
+            for (Flight f : flights) {
+              double ontime = result[resultno++];
+              c.output(createOutput(f, ontime));
+            }
           }
         }));
     return lines;
   }
 
-  private static PCollection<String> addPredictionInBatches(PCollection<Flight> outFlights) {
-    PCollection<String> lines = outFlights //
-        .apply(Window.<Flight> into(FixedWindows.of(Duration.standardMinutes(1)))) //
-        .apply("Minibatch_s1", ParDo.of(new DoFn<Flight, KV<String, Flight>>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            Flight f = c.element();
-            c.output(KV.of("all", f));
-          }
-        }))//
-        .apply("Minibatch_s2", GroupByKey.<String, Flight>create()) //
-        .apply("Inference", ParDo.of(new DoFn<KV<String, Iterable<Flight>>, String>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            Iterable<Flight> flights = c.element().getValue();
-            // do all the arrived events immediately
-            for (Flight f : flights) {
-              if (f.getField(INPUTCOLS.EVENT).equals("arrived")) {
-                double ontime = f.getFieldAsFloat(INPUTCOLS.ARR_DELAY, 0) < 15? 1 : 0;
-                String csv = String.join(",", f.getFields());
-                csv = csv + "," + ontime;
-                c.output(csv); // actual ontime performance
-              }
-            }
-            
-            // batch all the wheelsoff events into single request
-            try {
-              CallPrediction.Request request = new CallPrediction.Request();
-              for (Flight f : flights) {
-                if (f.getField(INPUTCOLS.EVENT).equals("wheelsoff") && f.isNotCancelled() && f.isNotDiverted()) {
-                  CallPrediction.Instance instance = new CallPrediction.Instance(f);
-                  request.instances.add(instance);
-                }
-              }
-              // send request
-              CallPrediction.Response resp = CallPrediction.sendRequest(request);
-              double[] result = resp.getOntimeProbability(-5);
-              if (result.length == request.instances.size()) {
-                int resultno = 0;
-                for (Flight f : flights) {
-                  if (f.getField(INPUTCOLS.EVENT).equals("wheelsoff") && f.isNotCancelled() && f.isNotDiverted()) {
-                    double ontime = result[resultno++];
-                    String csv = String.join(",", f.getFields());
-                    csv = csv + "," + ontime;
-                    c.output(csv); // predicted ontime performance
-                  }
-                }
-              } else {
-                throw new UnexpectedException("Should receive as many results as instances sent");
-              }
-            } catch (Throwable t) {
-              LOG.warn("Inference failed", t);
-              c.output(t.getMessage());
-            }
-          }
-        }));
-    return lines;
+  private static String createOutput(Flight f, double ontime) {
+    // round off to nearest 0.01
+    DecimalFormat df = new DecimalFormat("0.00");
+    return createOutput(f, df.format(ontime));
   }
   
+  private static String createOutput(Flight f, String ontime) {
+    String csv = String.join(",", f.getFields());
+    csv = csv + "," + ontime;
+    return csv;
+  }
 }
