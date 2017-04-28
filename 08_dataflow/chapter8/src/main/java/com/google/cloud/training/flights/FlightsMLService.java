@@ -18,7 +18,11 @@ import com.google.api.client.util.ExponentialBackOff;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-public class CallPrediction {
+public class FlightsMLService {
+
+  private static final String PROJECT = "cloud-training-demos";
+  private static String       MODEL   = "flights";
+  private static String       VERSION = "v1";
 
   static class Instance {
     double dep_delay, taxiout, distance, avg_dep_delay, avg_arr_delay, dep_lat, dep_lon, arr_lat, arr_lon;
@@ -68,10 +72,6 @@ public class CallPrediction {
       return result;
     }
   }
-
-  private static final String PROJECT = "cloud-training-demos";
-  private static String       MODEL   = "flights";
-  private static String       VERSION = "v1";
 
   static Response sendRequest(Request req) throws IOException, GeneralSecurityException {
     // get JSON of request

@@ -211,11 +211,11 @@ public class AddRealtimePrediction {
             }
 
             // do ml inference for wheelsoff events, but as batch
-            CallPrediction.Request request = new CallPrediction.Request();
+            FlightsMLService.Request request = new FlightsMLService.Request();
             for (Flight f : flights) {
-              request.instances.add(new CallPrediction.Instance(f));
+              request.instances.add(new FlightsMLService.Instance(f));
             }
-            CallPrediction.Response resp = CallPrediction.sendRequest(request);
+            FlightsMLService.Response resp = FlightsMLService.sendRequest(request);
             double[] result = resp.getOntimeProbability(-5);
             // append probability
             int resultno = 0;
