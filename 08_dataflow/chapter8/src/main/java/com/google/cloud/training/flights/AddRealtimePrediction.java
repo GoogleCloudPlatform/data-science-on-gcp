@@ -80,7 +80,12 @@ public class AddRealtimePrediction {
         })) //
         .apply("toView", View.asMap());
   }
-
+  
+  private static interface InputOutput {
+    public abstract PCollection<Flight> readFlights(Pipeline p, MyOptions options);
+    public abstract void writeFlights(PCollection<Flight> outFlights, MyOptions options);
+  }
+  
   public static void main(String[] args) {
     MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
     // options.setStreaming(true);
@@ -88,12 +93,9 @@ public class AddRealtimePrediction {
     options.setTempLocation("gs://cloud-training-demos-ml/flights/staging");
     Pipeline p = Pipeline.create(options);
 
-    String query = "SELECT EVENT_DATA FROM flights.simevents WHERE ";
-    query += " STRING(FL_DATE) = '2015-01-04' AND ";
-    query += " (EVENT = 'wheelsoff' OR EVENT = 'arrived') ";
-    LOG.info(query);
-
-    PCollection<Flight> allFlights = readFlights(p, query);
+    InputOutput io = new BatchInputOutput();
+    
+    PCollection<Flight> allFlights = io.readFlights(p, options);
 
     PCollectionView<Map<String, Double>> avgDepDelay = readAverageDepartureDelay(p, options.getDelayPath());
 
@@ -105,37 +107,123 @@ public class AddRealtimePrediction {
 
     hourlyFlights = CreateTrainingDataset.addDelayInformation(hourlyFlights, avgDepDelay, avgArrDelay);
 
-    writeFlights(hourlyFlights, options);
+    io.writeFlights(hourlyFlights, options);
 
     PipelineResult result = p.run();
     result.waitUntilFinish();
   }
-
-  private static PCollection<Flight> readFlights(Pipeline p, String query) {
-    PCollection<Flight> allFlights = p //
-        .apply("ReadLines", BigQueryIO.Read.fromQuery(query)) //
-        .apply("ParseFlights", ParDo.of(new DoFn<TableRow, Flight>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            TableRow row = c.element();
-            String line = (String) row.getOrDefault("EVENT_DATA", "");
-            Flight f = Flight.fromCsv(line);
-            if (f != null) {
-              c.outputWithTimestamp(f, f.getEventTimestamp());
-            }
-          }
-        }));
-    return allFlights;
-  }
-
-  private static void writeFlights(PCollection<Flight> outFlights, MyOptions options) {
-    // PCollection<String> lines = addPredictionOneByOne(outFlights);
-    try {
-      PCollection<String> lines = addPredictionInBatches(outFlights);
-      lines.apply("Write", TextIO.Write.to(options.getOutput() + "flightPreds").withSuffix(".csv"));
-    } catch (Throwable t) {
-      LOG.warn("Inference failed", t);
+  
+  private static abstract class InputOutputHelper<OutputType> implements InputOutput {
+    public abstract OutputType createOutput(Flight f, String ontime);
+    public OutputType createOutput(Flight f, double ontime) {
+      // round off to nearest 0.01
+      DecimalFormat df = new DecimalFormat("0.00");
+      return createOutput(f, df.format(ontime));
     }
+    public PCollection<OutputType> addPredictionInBatches(PCollection<Flight> outFlights) {
+      final int NUM_BATCHES = 2;
+      PCollection<OutputType> lines = outFlights //
+          .apply("Batch->Flight", ParDo.of(new DoFn<Flight, KV<String, Flight>>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) throws Exception {
+              Flight f = c.element();
+              String key;
+              if (f.isNotCancelled() && f.isNotDiverted()) {
+                key = f.getField(INPUTCOLS.EVENT); // "arrived" "wheelsoff"
+              } else {
+                key = "ignored";
+              }
+              // add a randomized part to provide batching capability
+              key = key + " " + (System.identityHashCode(f) % NUM_BATCHES);
+              c.output(KV.of(key, f));
+            }
+          })) //
+          .apply("CreateBatches", GroupByKey.<String, Flight> create()) // within window
+          .apply("Inference", ParDo.of(new DoFn<KV<String, Iterable<Flight>>, OutputType>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) throws Exception {
+              String key = c.element().getKey();
+              Iterable<Flight> flights = c.element().getValue();
+
+              // write out all the ignored events as-is
+              if (key.startsWith("ignored")) {
+                for (Flight f : flights) {
+                  c.output(createOutput(f, ""));
+                }
+                return;
+              }
+
+              // for arrived events, emit actual ontime performance
+              if (key.startsWith("arrived")) {
+                for (Flight f : flights) {
+                  double ontime = f.getFieldAsFloat(INPUTCOLS.ARR_DELAY, 0) < 15 ? 1 : 0;
+                  c.output(createOutput(f, ontime));
+                }
+                return;
+              }
+
+              // do ml inference for wheelsoff events, but as batch
+              FlightsMLService.Request request = new FlightsMLService.Request();
+              for (Flight f : flights) {
+                request.instances.add(new FlightsMLService.Instance(f));
+              }
+              FlightsMLService.Response resp = FlightsMLService.sendRequest(request);
+              double[] result = resp.getOntimeProbability(-5);
+              // append probability
+              int resultno = 0;
+              for (Flight f : flights) {
+                double ontime = result[resultno++];
+                c.output(createOutput(f, ontime));
+              }
+            }
+          }));
+      return lines;
+    }
+  }
+  
+  private static class BatchInputOutput extends InputOutputHelper<String> {
+
+    @Override
+    public PCollection<Flight> readFlights(Pipeline p, MyOptions options) {
+      String query = "SELECT EVENT_DATA FROM flights.simevents WHERE ";
+      query += " STRING(FL_DATE) = '2015-01-04' AND ";
+      query += " (EVENT = 'wheelsoff' OR EVENT = 'arrived') ";
+      LOG.info(query);
+
+      PCollection<Flight> allFlights = p //
+          .apply("ReadLines", BigQueryIO.Read.fromQuery(query)) //
+          .apply("ParseFlights", ParDo.of(new DoFn<TableRow, Flight>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) throws Exception {
+              TableRow row = c.element();
+              String line = (String) row.getOrDefault("EVENT_DATA", "");
+              Flight f = Flight.fromCsv(line);
+              if (f != null) {
+                c.outputWithTimestamp(f, f.getEventTimestamp());
+              }
+            }
+          }));
+      return allFlights;
+    }
+
+    @Override
+    public void writeFlights(PCollection<Flight> outFlights, MyOptions options) {
+      // PCollection<String> lines = addPredictionOneByOne(outFlights);
+      try {
+        PCollection<String> lines = addPredictionInBatches(outFlights);
+        lines.apply("Write", TextIO.Write.to(options.getOutput() + "flightPreds").withSuffix(".csv"));
+      } catch (Throwable t) {
+        LOG.warn("Inference failed", t);
+      }
+    }
+
+    @Override
+    public String createOutput(Flight f, String ontime) {
+      String csv = String.join(",", f.getFields());
+      csv = csv + "," + ontime;
+      return csv;
+    }
+    
   }
 
 /*  private static PCollection<String> addPredictionOneByOne(PCollection<Flight> outFlights) {
@@ -167,76 +255,4 @@ public class AddRealtimePrediction {
         }));
     return lines;
   }*/
-
-  private static PCollection<String> addPredictionInBatches(PCollection<Flight> outFlights) {
-    final int NUM_BATCHES = 2;
-    PCollection<String> lines = outFlights //
-        .apply("Batch->Flight", ParDo.of(new DoFn<Flight, KV<String, Flight>>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            Flight f = c.element();
-            String key;
-            if (f.isNotCancelled() && f.isNotDiverted()) {
-              key = f.getField(INPUTCOLS.EVENT); // "arrived" "wheelsoff"
-            } else {
-              key = "ignored";
-            }
-            // add a randomized part to provide batching capability
-            key = key + " " + (System.identityHashCode(f) % NUM_BATCHES);
-            c.output(KV.of(key, f));
-          }
-        })) //
-        .apply("CreateBatches", GroupByKey.<String, Flight> create()) // within window
-        .apply("Inference", ParDo.of(new DoFn<KV<String, Iterable<Flight>>, String>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            String key = c.element().getKey();
-            Iterable<Flight> flights = c.element().getValue();
-
-            // write out all the ignored events as-is
-            if (key.startsWith("ignored")) {
-              for (Flight f : flights) {
-                c.output(createOutput(f, ""));
-              }
-              return;
-            }
-
-            // for arrived events, emit actual ontime performance
-            if (key.startsWith("arrived")) {
-              for (Flight f : flights) {
-                double ontime = f.getFieldAsFloat(INPUTCOLS.ARR_DELAY, 0) < 15 ? 1 : 0;
-                c.output(createOutput(f, ontime));
-              }
-              return;
-            }
-
-            // do ml inference for wheelsoff events, but as batch
-            FlightsMLService.Request request = new FlightsMLService.Request();
-            for (Flight f : flights) {
-              request.instances.add(new FlightsMLService.Instance(f));
-            }
-            FlightsMLService.Response resp = FlightsMLService.sendRequest(request);
-            double[] result = resp.getOntimeProbability(-5);
-            // append probability
-            int resultno = 0;
-            for (Flight f : flights) {
-              double ontime = result[resultno++];
-              c.output(createOutput(f, ontime));
-            }
-          }
-        }));
-    return lines;
-  }
-
-  private static String createOutput(Flight f, double ontime) {
-    // round off to nearest 0.01
-    DecimalFormat df = new DecimalFormat("0.00");
-    return createOutput(f, df.format(ontime));
-  }
-  
-  private static String createOutput(Flight f, String ontime) {
-    String csv = String.join(",", f.getFields());
-    csv = csv + "," + ontime;
-    return csv;
-  }
 }
