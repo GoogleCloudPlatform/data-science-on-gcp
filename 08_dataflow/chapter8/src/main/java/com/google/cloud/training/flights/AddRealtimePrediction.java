@@ -79,9 +79,15 @@ public class AddRealtimePrediction {
     void setDelayPath(String s);
     
     @Description("If real-time, it will read incoming flight info from Pub/Sub")
-    @Default.Boolean(true)
+    @Default.Boolean(false)
     boolean isRealtime();
     void setRealtime(boolean r);
+    
+    @Description("Simulation speedup factor if applicable")
+    @Default.Long(1)
+    long getSpeedupFactor();
+
+    void setSpeedupFactor(long d);
   }
 
   private static PCollectionView<Map<String, Double>> readAverageDepartureDelay(Pipeline p, String path) {
@@ -123,9 +129,13 @@ public class AddRealtimePrediction {
 
     PCollectionView<Map<String, Double>> avgDepDelay = readAverageDepartureDelay(p, options.getDelayPath());
 
+    // If we need to average over 60 minutes and speedup is 30x,
+    // then we need to average over 2 minutes of sped-up stream
+    Duration averagingInterval = CreateTrainingDataset.AVERAGING_INTERVAL.dividedBy(options.getSpeedupFactor());
+    Duration averagingFrequency = CreateTrainingDataset.AVERAGING_FREQUENCY.dividedBy(options.getSpeedupFactor());
     PCollection<Flight> hourlyFlights = allFlights.apply(Window.<Flight> into(SlidingWindows//
-        .of(Duration.standardHours(1))//
-        .every(Duration.standardMinutes(5)))); // .discardingFiredPanes());
+        .of(averagingInterval)//
+        .every(averagingFrequency))); // .discardingFiredPanes());
 
     PCollection<KV<String, Double>> avgArrDelay = CreateTrainingDataset.computeAverageArrivalDelay(hourlyFlights);
 
@@ -223,13 +233,16 @@ public class AddRealtimePrediction {
       for (String eventType : new String[]{"wheelsoff", "arrived"}){
         String topic = "projects/" + options.getProject() + "/topics/" + eventType;
         PCollection<Flight> flights = p.apply(eventType + ":read",
-            PubsubIO.<String> read().topic(topic).withCoder(StringUtf8Coder.of())) //
+            PubsubIO.<String> read().topic(topic).withCoder(StringUtf8Coder.of()).timestampLabel("EventTimeStamp")) //
             .apply(eventType + ":parse", ParDo.of(new DoFn<String, Flight>() {
               @ProcessElement
               public void processElement(ProcessContext c) throws Exception {
                 String line = c.element();
                 Flight f = Flight.fromCsv(line);
-                c.output(f);
+                if (f != null) {
+                  c.output(f);
+                  // c.outputWithTimestamp(f, f.getEventTimestamp());
+                }
               }
             }));
         pcs = pcs.and(flights);

@@ -79,6 +79,8 @@ public class CreateTrainingDataset {
     void setTraindayCsvPath(String s);
   }
 
+  final static Duration AVERAGING_INTERVAL = Duration.standardHours(1);
+  final static Duration AVERAGING_FREQUENCY = Duration.standardMinutes(5);
   public static void main(String[] args) {
     MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
     // options.setStreaming(true);
@@ -105,8 +107,8 @@ public class CreateTrainingDataset {
     PCollectionView<Map<String, Double>> avgDepDelay = depDelays.apply("depdelay->map", View.asMap());
 
     PCollection<Flight> hourlyFlights = allFlights.apply(Window.<Flight> into(SlidingWindows//
-        .of(Duration.standardHours(1))//
-        .every(Duration.standardMinutes(5)))); // .discardingFiredPanes());
+        .of(AVERAGING_INTERVAL)//
+        .every(AVERAGING_FREQUENCY))); // .discardingFiredPanes());
 
     PCollection<KV<String, Double>> avgArrDelay = computeAverageArrivalDelay(hourlyFlights);
 
@@ -201,8 +203,9 @@ public class CreateTrainingDataset {
     lines.apply(name + "Write", TextIO.Write.to(options.getOutput() + name + "Flights").withSuffix(".csv"));
   }
 
-  static PCollection<Flight> addDelayInformation(PCollection<Flight> hourlyFlights,
-      PCollectionView<Map<String, Double>> avgDepDelay, PCollection<KV<String, Double>> avgArrDelay) {
+  static PCollection<Flight> addDelayInformation(PCollection<Flight> hourlyFlights, //
+      PCollectionView<Map<String, Double>> avgDepDelay, //
+      PCollection<KV<String, Double>> avgArrDelay) {
 
     PCollection<KV<String, Flight>> airportFlights = //
         hourlyFlights //
@@ -212,9 +215,10 @@ public class CreateTrainingDataset {
                 Instant endOfWindow = window.maxTimestamp();
                 Instant flightTimestamp = c.element().getEventTimestamp();
                 long msecs = endOfWindow.getMillis() - flightTimestamp.getMillis();
-                long THRESH = 5 * 60 * 1000; // 5 minutes
-                if (msecs < THRESH) {
+                if (msecs < AVERAGING_FREQUENCY.getMillis()) {
                   c.output(c.element());
+                } else {
+                  throw new RuntimeException("endOfWindow=" + endOfWindow + " flightTimeStamp=" + flightTimestamp);
                 }
               }
             }))//

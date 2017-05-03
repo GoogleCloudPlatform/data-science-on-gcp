@@ -24,14 +24,15 @@ import google.cloud.bigquery as bq
 
 TIME_FORMAT = '%Y-%m-%d %H:%M:%S %Z'
 
-def publish(topics, allevents):
+def publish(topics, allevents, notify_time):
+   timestamp = notify_time.strftime(TIME_FORMAT)
    for key in topics:  # 'departed', 'arrived', etc.
       topic = topics[key]
       events = allevents[key]
       with topic.batch() as batch:
          logging.info('Publishing {} {} events'.format(len(events), key))
          for event_data in events:
-              batch.publish(event_data)
+              batch.publish(event_data, EventTimeStamp=timestamp)
 
 def notify(topics, rows, simStartTime, programStart, speedFactor):
    # sleep computation
@@ -51,7 +52,7 @@ def notify(topics, rows, simStartTime, programStart, speedFactor):
        # how much time should we sleep?
        if compute_sleep_secs(notify_time) > 1:
           # notify the accumulated tonotify
-          publish(topics, tonotify)
+          publish(topics, tonotify, notify_time)
           for key in topics:
              tonotify[key] = list()
 
@@ -63,7 +64,7 @@ def notify(topics, rows, simStartTime, programStart, speedFactor):
        tonotify[event].append(event_data)
 
    # left-over records; notify again
-   publish(topics, tonotify)
+   publish(topics, tonotify, notify_time)
 
 
 if __name__ == '__main__':

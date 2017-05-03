@@ -16,6 +16,8 @@
 
 package com.google.cloud.training.flights;
 
+import java.util.Arrays;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
@@ -43,7 +45,7 @@ public class CreateTrainingDataset1 {
         "2015-09-20,AA,19805,AA,2342,11292,1129202,30325,DEN,13303,1330303,32467,MIA,2015-09-21T05:59:00,2015-09-20T06:33:00,34.00,14.00,2015-09-20T06:47:00,,,2015-09-20T09:47:00,,,0.00,,,1709.00,39.86166667,-104.67305556,-21600.0,25.79527778,-80.29000000,-14400.0,wheelsoff,2015-09-20T06:47:00" };
 
     p //
-        .apply(Create.of(events)) //
+        .apply(Create.of(Arrays.asList(events))) //
         .apply(ParDo.of(new DoFn<String, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {

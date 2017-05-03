@@ -16,6 +16,7 @@
 
 package com.google.cloud.training.flights;
 
+import java.util.Arrays;
 import java.util.Map;
 
 import org.apache.beam.sdk.Pipeline;
@@ -80,7 +81,7 @@ public class CreateTrainingDataset5 {
     PCollection<Flight> flights = p //
         .apply("ReadLines",
             // TextIO.Read.from(options.getInput())) //
-            Create.of(events)) //
+            Create.of(Arrays.asList(events))) //
         .apply("ParseFlights", ParDo.of(new DoFn<String, Flight>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
