@@ -5,6 +5,9 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.ByteArrayContent;
@@ -19,7 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 public class FlightsMLService {
-
+  private static final Logger LOG = LoggerFactory.getLogger(FlightsMLService.class);
   private static final String PROJECT = "cloud-training-demos";
   private static String       MODEL   = "flights";
   private static String       VERSION = "v1";
@@ -27,7 +30,7 @@ public class FlightsMLService {
   static class Instance {
     double dep_delay, taxiout, distance, avg_dep_delay, avg_arr_delay, dep_lat, dep_lon, arr_lat, arr_lon;
     String carrier, origin, dest;
-    
+
     Instance() {}
     Instance(Flight f) {
       this.dep_delay = f.getFieldAsFloat(Flight.INPUTCOLS.DEP_DELAY);
@@ -77,26 +80,33 @@ public class FlightsMLService {
     // get JSON of request
     Gson gson = new GsonBuilder().create();
     String json = gson.toJson(req, Request.class);
-    // System.out.println(json);
+    LOG.debug(json);
 
     // our service's URL
     String endpoint = "https://ml.googleapis.com/v1/projects/" 
-       + String.format("%s/models/%s/versions/%s:predict", PROJECT, MODEL, VERSION);
+        + String.format("%s/models/%s/versions/%s:predict", PROJECT, MODEL, VERSION);
     GenericUrl url = new GenericUrl(endpoint);
 
     // create request
-    GoogleCredential credential = GoogleCredential.getApplicationDefault();
-    HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-    HttpRequestFactory requestFactory = httpTransport.createRequestFactory(credential);
-    HttpContent content = new ByteArrayContent("application/json", json.getBytes());
-    HttpRequest request = requestFactory.buildRequest("POST", url, content);
-    request.setUnsuccessfulResponseHandler(new HttpBackOffUnsuccessfulResponseHandler(new ExponentialBackOff()));
-    request.setReadTimeout(10000);
-           
-    // parse response
-    String response = request.execute().parseAsString();
-    // System.out.println(response);
-    return gson.fromJson(response, Response.class);
+    long startTime = System.currentTimeMillis();
+    try {
+      GoogleCredential credential = GoogleCredential.getApplicationDefault();
+      HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+      HttpRequestFactory requestFactory = httpTransport.createRequestFactory(credential);
+      HttpContent content = new ByteArrayContent("application/json", json.getBytes());
+      HttpRequest request = requestFactory.buildRequest("POST", url, content);
+      request.setUnsuccessfulResponseHandler(new HttpBackOffUnsuccessfulResponseHandler(new ExponentialBackOff()));
+      request.setReadTimeout(5 * 60 * 1000); // 5 minutes
+      String response = request.execute().parseAsString();
+
+      // parse response
+      LOG.debug(response);
+      return gson.fromJson(response, Response.class);
+    }
+    finally {
+      long endTime = System.currentTimeMillis();
+      LOG.debug((endTime - startTime) + " msecs overall");
+    }
   }
 
   public static double predictOntimeProbability(Flight f, double defaultValue) throws IOException, GeneralSecurityException {
@@ -142,7 +152,7 @@ public class FlightsMLService {
     // send request to service
     Response resp = sendRequest(request);
     System.out.println(resp.getOntimeProbability(-1)[0]);
-    
+
     Flight f = Flight.fromCsv("2015-01-04,EV,20366,EV,2563,11298,1129803,30194,DFW,11140,1114004,31140,CRP,2015-01-04T13:25:00,2015-01-04T13:33:00,8.00,16.00,2015-01-04T13:49:00,,,2015-01-04T14:45:00,,,0.00,,,354.00,32.89694444,-97.03805556,-21600.0,27.77083333,-97.50111111,-21600.0,wheelsoff,2015-01-04T13:49:00");
     f.avgArrivalDelay = 13;
     f.avgDepartureDelay = 12;
