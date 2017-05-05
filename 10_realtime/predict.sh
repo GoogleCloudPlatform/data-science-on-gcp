@@ -7,5 +7,5 @@ cd chapter10
 
 mvn compile exec:java \
  -Dexec.mainClass=com.google.cloud.training.flights.AddRealtimePrediction \
- -Dexec.args="--realtime --speedupFactor=300 --maxNumWorkers=10 --autoscalingAlgorithm=THROUGHPUT_BASED"
+ -Dexec.args="--realtime --speedupFactor=60 --maxNumWorkers=10 --autoscalingAlgorithm=THROUGHPUT_BASED"
 

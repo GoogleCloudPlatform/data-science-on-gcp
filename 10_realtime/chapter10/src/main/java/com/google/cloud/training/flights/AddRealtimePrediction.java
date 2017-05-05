@@ -209,7 +209,7 @@ public class AddRealtimePrediction {
               }
 
               // do ml inference for wheelsoff events, but as batch
-              double[] result = FlightsMLService.mock_batchPredict(flights, -5); // FIXME
+              double[] result = FlightsMLService.batchPredict(flights, -5); // FIXME
               int resultno = 0;
               for (Flight f : flights) {
                 double ontime = result[resultno++];
@@ -224,15 +224,34 @@ public class AddRealtimePrediction {
   private static class PubSubBigQuery extends InputOutputHelper {
     private static final String BQ_TABLE_NAME = "flights.predictions";
     
+//    private SerializableFunction<ValueInSingleWindow, String> getTableNameFunction() {
+//      return new SerializableFunction<ValueInSingleWindow, String>() {
+//                  public String apply(ValueInSingleWindow value) {
+//                     // The cast below is safe because CalendarWindows.days(1) produces IntervalWindows.
+//                     String dayString = DateTimeFormat.forPattern("yyyy_MM_dd")
+//                          .withZone(DateTimeZone.UTC)
+//                          .print(((IntervalWindow) value.getWindow()).start());
+//                     return BQ_TABLE_NAME + "_" + dayString;
+//                   }
+//      }
+//    }
+    
     @Override
     public PCollection<Flight> readFlights(Pipeline p, MyOptions options) {
+      // return readFlights_flatten(p, options);
+      return readFlights_workaround(p, options);
+    }
+    
+    // cleaner implementation, but doesn't work because of b/34884809
+    @SuppressWarnings("unused")
+    private PCollection<Flight> readFlights_flatten(Pipeline p, MyOptions options) {
       // empty collection to start
       PCollectionList<Flight> pcs = PCollectionList.empty(p);
       // read flights from each of two topics
       for (String eventType : new String[]{"wheelsoff", "arrived"}){
         String topic = "projects/" + options.getProject() + "/topics/" + eventType;
         PCollection<Flight> flights = p.apply(eventType + ":read",
-            PubsubIO.<String> read().topic(topic).withCoder(StringUtf8Coder.of()).timestampLabel("EventTimeStamp")) //
+            PubsubIO.<String> read().topic(topic).withCoder(StringUtf8Coder.of())/*.timestampLabel("EventTimeStamp")*/) //
             .apply(eventType + ":parse", ParDo.of(new DoFn<String, Flight>() {
               @ProcessElement
               public void processElement(ProcessContext c) throws Exception {
@@ -249,6 +268,32 @@ public class AddRealtimePrediction {
       // flatten collection
       return pcs.apply(Flatten.<Flight>pCollections());
     }
+   
+    // workaround  b/34884809 by streaming to a new topic and reading from it.
+    public PCollection<Flight> readFlights_workaround(Pipeline p, MyOptions options) {
+      String tempTopic = "projects/" + options.getProject() + "/topics/dataflow_temp";
+      
+      // read flights from each of two topics, and write to combined
+      for (String eventType : new String[]{"wheelsoff", "arrived"}){
+        String topic = "projects/" + options.getProject() + "/topics/" + eventType;
+        p.apply(eventType + ":read", //
+            PubsubIO.<String> read().topic(topic).withCoder(StringUtf8Coder.of())) //
+            .apply(eventType + ":write", PubsubIO.<String> write().topic(tempTopic).withCoder(StringUtf8Coder.of()));
+      }
+      
+      return p.apply("combined:read",
+          PubsubIO.<String> read().topic(tempTopic).withCoder(StringUtf8Coder.of())) //
+          .apply("parse", ParDo.of(new DoFn<String, Flight>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) throws Exception {
+              String line = c.element();
+              Flight f = Flight.fromCsv(line);
+              if (f != null) {
+                c.output(f);
+              }
+            }
+          }));
+    } 
   
     @Override
     public void writeFlights(PCollection<Flight> outFlights, MyOptions options) {
@@ -260,9 +305,17 @@ public class AddRealtimePrediction {
         public void processElement(ProcessContext c) throws Exception {
           FlightPred pred = c.element();
           TableRow row = new TableRow();
-          for (INPUTCOLS col : INPUTCOLS.values()) {
+          for (int i=0; i < types.length; ++i) {
+            INPUTCOLS col = INPUTCOLS.values()[i];
             String name = col.name();
-            row.set(name, pred.flight.getField(col));
+            String value = pred.flight.getField(col);
+            if (value.length() > 0) {
+              if (types[i].equals("FLOAT")) {
+                row.set(name, Float.parseFloat(value));
+              } else {
+                row.set(name, value);
+              }
+            }
           }
           row.set("ontime", Math.round(pred.ontime*100)/100.0);
           c.output(row);
@@ -273,24 +326,32 @@ public class AddRealtimePrediction {
           .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
     }
 
-    private List<TableFieldSchema> getTableFields() {
-      List<TableFieldSchema> fields = new ArrayList<>();
+    private String[] types;
+    public PubSubBigQuery() {
+      this.types = new String[INPUTCOLS.values().length];   
       String[] floatPatterns = new String[] {"LAT", "LON", "DELAY", "DISTANCE", "TAXI"};
       String[] timePatterns  = new String[] {"TIME", "WHEELS" };
-      for (INPUTCOLS col : INPUTCOLS.values()) {
-        String name = col.name();
-        String type = "STRING";
+      for (int i=0; i < types.length; ++i) {
+        String name = INPUTCOLS.values()[i].name();
+        types[i] = "STRING";
         for (String pattern : floatPatterns) {
           if (name.contains(pattern)) {
-            type = "FLOAT";
+            types[i] = "FLOAT";
           }
         }
         for (String pattern : timePatterns) {
           if (name.contains(pattern)) {
-            type = "TIMESTAMP";
+            types[i] = "TIMESTAMP";
           }
         }
-        fields.add(new TableFieldSchema().setName(name).setType(type));
+      }
+    }
+    
+    private List<TableFieldSchema> getTableFields() {
+      List<TableFieldSchema> fields = new ArrayList<>();
+      for (int i=0; i < types.length; ++i) {
+        String name = INPUTCOLS.values()[i].name();
+        fields.add(new TableFieldSchema().setName(name).setType(types[i]));
       }
       fields.add(new TableFieldSchema().setName("ontime").setType("FLOAT"));
       return fields;
