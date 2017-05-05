@@ -119,8 +119,14 @@ public class AddRealtimePrediction {
 
     // in real-time, we read from PubSub and write to BigQuery
     InputOutput io;
+    Duration averagingInterval = CreateTrainingDataset.AVERAGING_INTERVAL;
+    Duration averagingFrequency = CreateTrainingDataset.AVERAGING_FREQUENCY;
     if (options.isRealtime()) {
       io = new PubSubBigQuery();
+      // If we need to average over 60 minutes and speedup is 30x,
+      // then we need to average over 2 minutes of sped-up stream
+      averagingInterval = averagingInterval.dividedBy(options.getSpeedupFactor());
+      averagingFrequency = averagingFrequency.dividedBy(options.getSpeedupFactor());
     } else {
       io = new BatchInputOutput();
     } 
@@ -129,17 +135,13 @@ public class AddRealtimePrediction {
 
     PCollectionView<Map<String, Double>> avgDepDelay = readAverageDepartureDelay(p, options.getDelayPath());
 
-    // If we need to average over 60 minutes and speedup is 30x,
-    // then we need to average over 2 minutes of sped-up stream
-    Duration averagingInterval = CreateTrainingDataset.AVERAGING_INTERVAL.dividedBy(options.getSpeedupFactor());
-    Duration averagingFrequency = CreateTrainingDataset.AVERAGING_FREQUENCY.dividedBy(options.getSpeedupFactor());
     PCollection<Flight> hourlyFlights = allFlights.apply(Window.<Flight> into(SlidingWindows//
         .of(averagingInterval)//
         .every(averagingFrequency))); // .discardingFiredPanes());
 
     PCollection<KV<String, Double>> avgArrDelay = CreateTrainingDataset.computeAverageArrivalDelay(hourlyFlights);
 
-    hourlyFlights = CreateTrainingDataset.addDelayInformation(hourlyFlights, avgDepDelay, avgArrDelay);
+    hourlyFlights = CreateTrainingDataset.addDelayInformation(hourlyFlights, avgDepDelay, avgArrDelay, averagingFrequency);
 
     io.writeFlights(hourlyFlights, options);
 
@@ -162,24 +164,26 @@ public class AddRealtimePrediction {
   }
   
   private static abstract class InputOutputHelper implements InputOutput {
+    private static class CreateBatch extends DoFn<Flight, KV<String, Flight>> {
+      private static final int NUM_BATCHES = 2;
+      @ProcessElement
+      public void processElement(ProcessContext c) throws Exception {
+        Flight f = c.element();
+        String key;
+        if (f.isNotCancelled() && f.isNotDiverted()) {
+          key = f.getField(INPUTCOLS.EVENT); // "arrived" "wheelsoff"
+        } else {
+          key = "ignored";
+        }
+        // add a randomized part to provide batching capability
+        key = key + " " + (System.identityHashCode(f) % NUM_BATCHES);
+        c.output(KV.of(key, f));
+      }
+    }
     public PCollection<FlightPred> addPredictionInBatches(PCollection<Flight> outFlights) {
-      final int NUM_BATCHES = 2;
+      
       PCollection<FlightPred> lines = outFlights //
-          .apply("Batch->Flight", ParDo.of(new DoFn<Flight, KV<String, Flight>>() {
-            @ProcessElement
-            public void processElement(ProcessContext c) throws Exception {
-              Flight f = c.element();
-              String key;
-              if (f.isNotCancelled() && f.isNotDiverted()) {
-                key = f.getField(INPUTCOLS.EVENT); // "arrived" "wheelsoff"
-              } else {
-                key = "ignored";
-              }
-              // add a randomized part to provide batching capability
-              key = key + " " + (System.identityHashCode(f) % NUM_BATCHES);
-              c.output(KV.of(key, f));
-            }
-          })) //
+          .apply("Batch->Flight", ParDo.of(new CreateBatch())) //
           .apply("CreateBatches", GroupByKey.<String, Flight> create()) // within window
           .apply("Inference", ParDo.of(new DoFn<KV<String, Iterable<Flight>>, FlightPred>() {
             @ProcessElement
@@ -205,13 +209,7 @@ public class AddRealtimePrediction {
               }
 
               // do ml inference for wheelsoff events, but as batch
-              FlightsMLService.Request request = new FlightsMLService.Request();
-              for (Flight f : flights) {
-                request.instances.add(new FlightsMLService.Instance(f));
-              }
-              FlightsMLService.Response resp = FlightsMLService.sendRequest(request);
-              double[] result = resp.getOntimeProbability(-5);
-              // append probability
+              double[] result = FlightsMLService.mock_batchPredict(flights, -5); // FIXME
               int resultno = 0;
               for (Flight f : flights) {
                 double ontime = result[resultno++];
@@ -224,7 +222,8 @@ public class AddRealtimePrediction {
   }
   
   private static class PubSubBigQuery extends InputOutputHelper {
-
+    private static final String BQ_TABLE_NAME = "flights.predictions";
+    
     @Override
     public PCollection<Flight> readFlights(Pipeline p, MyOptions options) {
       // empty collection to start
@@ -253,7 +252,7 @@ public class AddRealtimePrediction {
   
     @Override
     public void writeFlights(PCollection<Flight> outFlights, MyOptions options) {
-      String outputTable = options.getProject() + ':' + "flights.predictions";
+      String outputTable = options.getProject() + ':' + BQ_TABLE_NAME;
       TableSchema schema = new TableSchema().setFields(getTableFields());
       PCollection<FlightPred> preds = addPredictionInBatches(outFlights);
       preds.apply("pred->row", ParDo.of(new DoFn<FlightPred, TableRow>() {

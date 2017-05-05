@@ -77,36 +77,60 @@ public class FlightsMLService {
   }
 
   static Response sendRequest(Request req) throws IOException, GeneralSecurityException {
-    // get JSON of request
-    Gson gson = new GsonBuilder().create();
-    String json = gson.toJson(req, Request.class);
-    LOG.debug(json);
-
-    // our service's URL
-    String endpoint = "https://ml.googleapis.com/v1/projects/" 
-        + String.format("%s/models/%s/versions/%s:predict", PROJECT, MODEL, VERSION);
-    GenericUrl url = new GenericUrl(endpoint);
-
-    // create request
     long startTime = System.currentTimeMillis();
     try {
+      // create JSON of request
+      Gson gson = new GsonBuilder().create();
+      String json = gson.toJson(req, Request.class);
+      LOG.debug(json);
+
+      // our service's URL
+      String endpoint = "https://ml.googleapis.com/v1/projects/" 
+          + String.format("%s/models/%s/versions/%s:predict", PROJECT, MODEL, VERSION);
+      GenericUrl url = new GenericUrl(endpoint);
+
+      // set up https
       GoogleCredential credential = GoogleCredential.getApplicationDefault();
       HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
       HttpRequestFactory requestFactory = httpTransport.createRequestFactory(credential);
       HttpContent content = new ByteArrayContent("application/json", json.getBytes());
+      
+      // send request
       HttpRequest request = requestFactory.buildRequest("POST", url, content);
       request.setUnsuccessfulResponseHandler(new HttpBackOffUnsuccessfulResponseHandler(new ExponentialBackOff()));
       request.setReadTimeout(5 * 60 * 1000); // 5 minutes
       String response = request.execute().parseAsString();
-
-      // parse response
       LOG.debug(response);
+      
+      // parse response
       return gson.fromJson(response, Response.class);
     }
     finally {
       long endTime = System.currentTimeMillis();
       LOG.debug((endTime - startTime) + " msecs overall");
     }
+  }
+  
+  public static double[] mock_batchPredict(Iterable<Flight> flights, float defaultValue) throws IOException, GeneralSecurityException {
+    int n = 0;
+    for (@SuppressWarnings("unused") Flight f : flights) {
+      ++n;
+    }
+    double[] result = new double[n];
+    for (int i=0; i < n; ++i) {
+      result[i] = defaultValue;
+    }
+    return result;
+  }
+  
+  public static double[] batchPredict(Iterable<Flight> flights, float defaultValue) throws IOException, GeneralSecurityException {
+    Request request = new Request();
+    for (Flight f : flights) {
+      request.instances.add(new Instance(f));
+    }
+    Response resp = sendRequest(request);
+    double[] result = resp.getOntimeProbability(defaultValue);
+    return result;
   }
 
   public static double predictOntimeProbability(Flight f, double defaultValue) throws IOException, GeneralSecurityException {

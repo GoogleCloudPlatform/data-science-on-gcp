@@ -67,7 +67,7 @@ public class CreateTrainingDataset {
     void setFullDataset(boolean b);
 
     @Description("Path of the output directory")
-    @Default.String("gs://cloud-training-demos-ml/flights/chapter8/output/")
+    @Default.String("gs://cloud-training-demos-ml/flights/chapter8/output2/")
     String getOutput();
 
     void setOutput(String s);
@@ -112,7 +112,7 @@ public class CreateTrainingDataset {
 
     PCollection<KV<String, Double>> avgArrDelay = computeAverageArrivalDelay(hourlyFlights);
 
-    hourlyFlights = addDelayInformation(hourlyFlights, avgDepDelay, avgArrDelay);
+    hourlyFlights = addDelayInformation(hourlyFlights, avgDepDelay, avgArrDelay, AVERAGING_FREQUENCY);
 
     for (String name : new String[] { "train", "test" }) {
       boolean isTrain = name.equals("train");
@@ -205,34 +205,32 @@ public class CreateTrainingDataset {
 
   static PCollection<Flight> addDelayInformation(PCollection<Flight> hourlyFlights, //
       PCollectionView<Map<String, Double>> avgDepDelay, //
-      PCollection<KV<String, Double>> avgArrDelay) {
+      PCollection<KV<String, Double>> avgArrDelay, Duration averagingFrequency) {
 
     PCollection<KV<String, Flight>> airportFlights = //
         hourlyFlights //
             .apply("InLatestSlice", ParDo.of(new DoFn<Flight, Flight>() {
+
               @ProcessElement
               public void processElement(ProcessContext c, IntervalWindow window) throws Exception {
                 Instant endOfWindow = window.maxTimestamp();
-                Instant flightTimestamp = c.element().getEventTimestamp();
+                Instant flightTimestamp = c.timestamp();
                 long msecs = endOfWindow.getMillis() - flightTimestamp.getMillis();
-                if (msecs < AVERAGING_FREQUENCY.getMillis()) {
+                if (msecs < averagingFrequency.getMillis()) {
                   c.output(c.element());
-                } else {
-                  throw new RuntimeException("endOfWindow=" + endOfWindow + " flightTimeStamp=" + flightTimestamp);
                 }
+                
               }
             }))//
             .apply("AddDepDelay", ParDo.withSideInputs(avgDepDelay).of(new DoFn<Flight, Flight>() {
              
               @ProcessElement
               public void processElement(ProcessContext c) throws Exception {
-
                 Flight f = c.element().newCopy();
                 String depKey = f.getField(Flight.INPUTCOLS.ORIGIN) + ":" + f.getDepartureHour();
                 Double depDelay = c.sideInput(avgDepDelay).get(depKey);
                 f.avgDepartureDelay = (float) ((depDelay == null) ? 0 : depDelay);
                 c.output(f);
-
               }
 
             })) //

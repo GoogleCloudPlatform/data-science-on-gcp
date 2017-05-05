@@ -213,12 +213,10 @@ public class CreateTrainingDataset {
               @ProcessElement
               public void processElement(ProcessContext c, IntervalWindow window) throws Exception {
                 Instant endOfWindow = window.maxTimestamp();
-                Instant flightTimestamp = c.element().getEventTimestamp();
+                Instant flightTimestamp = c.timestamp();
                 long msecs = endOfWindow.getMillis() - flightTimestamp.getMillis();
                 if (msecs < AVERAGING_FREQUENCY.getMillis()) {
                   c.output(c.element());
-                } else {
-                  throw new RuntimeException("endOfWindow=" + endOfWindow + " flightTimeStamp=" + flightTimestamp);
                 }
               }
             }))//
