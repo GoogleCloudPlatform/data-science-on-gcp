@@ -209,7 +209,7 @@ public class AddRealtimePrediction {
               }
 
               // do ml inference for wheelsoff events, but as batch
-              double[] result = FlightsMLService.batchPredict(flights, -5); // FIXME
+              double[] result = FlightsMLService.batchPredict(flights, -5);
               int resultno = 0;
               for (Flight f : flights) {
                 double ontime = result[resultno++];
@@ -317,7 +317,9 @@ public class AddRealtimePrediction {
               }
             }
           }
-          row.set("ontime", Math.round(pred.ontime*100)/100.0);
+          if (pred.ontime >= 0) {
+            row.set("ontime", Math.round(pred.ontime*100)/100.0);
+          }
           c.output(row);
         }})) //
      .apply("flights:write_toBQ",BigQueryIO.Write.to(outputTable) //
@@ -393,7 +395,11 @@ public class AddRealtimePrediction {
           public void processElement(ProcessContext c) throws Exception {
             FlightPred pred = c.element();
             String csv = String.join(",", pred.flight.getFields());
-            csv = csv + "," + new DecimalFormat("0.00").format(pred.ontime);
+            if (pred.ontime >= 0) {
+              csv = csv + "," + new DecimalFormat("0.00").format(pred.ontime);
+            } else {
+              csv = csv + ","; // empty string -> null
+            }
             c.output(csv);
           }})) //
         .apply("Write", TextIO.Write.to(options.getOutput() + "flightPreds").withSuffix(".csv"));
@@ -403,33 +409,25 @@ public class AddRealtimePrediction {
     }
   }
 
-/*  private static PCollection<String> addPredictionOneByOne(PCollection<Flight> outFlights) {
-    PCollection<String> lines = outFlights //
-        .apply("Inference", ParDo.of(new DoFn<Flight, String>() {
+  @SuppressWarnings("unused")
+  private static PCollection<FlightPred> addPredictionOneByOne(PCollection<Flight> outFlights) {
+    return outFlights //
+        .apply("Inference", ParDo.of(new DoFn<Flight, FlightPred>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
             Flight f = c.element();
-            String ontime = "";
-            try {
-              if (f.isNotCancelled() && f.isNotDiverted()) {
-                if (f.getField(INPUTCOLS.EVENT).equals("arrived")) {
-                  // actual ontime performance
-                  ontime = Double.toString(f.getFieldAsFloat(INPUTCOLS.ARR_DELAY, 0) < 15 ? 1 : 0);
-                } else {
-                  // wheelsoff: predict ontime arrival probability
-                  ontime = Double.toString(CallPrediction.predictOntimeProbability(f, -5.0));
-                }
+            double ontime = -5;
+            if (f.isNotCancelled() && f.isNotDiverted()) {
+              if (f.getField(INPUTCOLS.EVENT).equals("arrived")) {
+                // actual ontime performance
+                ontime = f.getFieldAsFloat(INPUTCOLS.ARR_DELAY, 0) < 15 ? 1 : 0;
+              } else {
+                // wheelsoff: predict ontime arrival probability
+                ontime = FlightsMLService.predictOntimeProbability(f, -5.0);
               }
-            } catch (Throwable t) {
-              LOG.warn("Prediction failed: ", t);
-              ontime = t.getMessage();
             }
-            // create output CSV
-            String csv = String.join(",", f.getFields());
-            csv = csv + "," + ontime;
-            c.output(csv);
+            c.output(new FlightPred(f, ontime));
           }
         }));
-    return lines;
-  }*/
+  }
 }
