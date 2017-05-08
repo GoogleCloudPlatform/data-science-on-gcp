@@ -85,7 +85,7 @@ if __name__ == '__main__':
    )
 
    flights = (pipeline 
-      | 'flights:read' >> beam.Read(beam.io.TextFileSource('201501_part.csv'))
+      | 'flights:read' >> beam.io.ReadFromText('201501_part.csv')
       | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
    )
 

@@ -130,7 +130,7 @@ def run(project, bucket):
    )
 
    flights = (pipeline 
-      | 'flights:read' >> beam.Read(beam.io.TextFileSource(flights_raw_files))
+      | 'flights:read' >> beam.io.ReadFromText (flights_raw_files)
       | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
    )
 
