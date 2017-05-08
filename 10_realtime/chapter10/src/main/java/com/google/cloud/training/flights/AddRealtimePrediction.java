@@ -137,7 +137,7 @@ public class AddRealtimePrediction {
 
     PCollection<Flight> hourlyFlights = allFlights.apply(Window.<Flight> into(SlidingWindows//
         .of(averagingInterval)//
-        .every(averagingFrequency))); // .discardingFiredPanes());
+        .every(averagingFrequency)));
 
     PCollection<KV<String, Double>> avgArrDelay = CreateTrainingDataset.computeAverageArrivalDelay(hourlyFlights);
 
@@ -259,7 +259,6 @@ public class AddRealtimePrediction {
                 Flight f = Flight.fromCsv(line);
                 if (f != null) {
                   c.output(f);
-                  // c.outputWithTimestamp(f, f.getEventTimestamp());
                 }
               }
             }));
@@ -300,7 +299,15 @@ public class AddRealtimePrediction {
       String outputTable = options.getProject() + ':' + BQ_TABLE_NAME;
       TableSchema schema = new TableSchema().setFields(getTableFields());
       PCollection<FlightPred> preds = addPredictionInBatches(outFlights);
-      preds.apply("pred->row", ParDo.of(new DoFn<FlightPred, TableRow>() {
+      PCollection<TableRow> rows = toTableRows(preds);
+      rows.apply("flights:write_toBQ",BigQueryIO.Write.to(outputTable) //
+          .withSchema(schema)//
+          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+          .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+    }
+
+    private PCollection<TableRow> toTableRows(PCollection<FlightPred> preds) {
+      return preds.apply("pred->row", ParDo.of(new DoFn<FlightPred, TableRow>() {
         @ProcessElement
         public void processElement(ProcessContext c) throws Exception {
           FlightPred pred = c.element();
@@ -322,10 +329,7 @@ public class AddRealtimePrediction {
           }
           c.output(row);
         }})) //
-     .apply("flights:write_toBQ",BigQueryIO.Write.to(outputTable) //
-          .withSchema(schema)//
-          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-          .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+;
     }
 
     private String[] types;
@@ -389,23 +393,28 @@ public class AddRealtimePrediction {
     public void writeFlights(PCollection<Flight> outFlights, MyOptions options) {
       // PCollection<String> lines = addPredictionOneByOne(outFlights);
       try {
-        PCollection<FlightPred> lines = addPredictionInBatches(outFlights);
-        lines.apply("pred->csv", ParDo.of(new DoFn<FlightPred, String>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            FlightPred pred = c.element();
-            String csv = String.join(",", pred.flight.getFields());
-            if (pred.ontime >= 0) {
-              csv = csv + "," + new DecimalFormat("0.00").format(pred.ontime);
-            } else {
-              csv = csv + ","; // empty string -> null
-            }
-            c.output(csv);
-          }})) //
-        .apply("Write", TextIO.Write.to(options.getOutput() + "flightPreds").withSuffix(".csv"));
+        PCollection<FlightPred> prds = addPredictionInBatches(outFlights);
+        PCollection<String> lines = predToCsv(prds);
+        lines.apply("Write", TextIO.Write.to(options.getOutput() + "flightPreds").withSuffix(".csv"));
       } catch (Throwable t) {
         LOG.warn("Inference failed", t);
       }
+    }
+
+    private PCollection<String> predToCsv(PCollection<FlightPred> preds) {
+      return preds.apply("pred->csv", ParDo.of(new DoFn<FlightPred, String>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) throws Exception {
+          FlightPred pred = c.element();
+          String csv = String.join(",", pred.flight.getFields());
+          if (pred.ontime >= 0) {
+            csv = csv + "," + new DecimalFormat("0.00").format(pred.ontime);
+          } else {
+            csv = csv + ","; // empty string -> null
+          }
+          c.output(csv);
+        }})) //
+;
     }
   }
 
