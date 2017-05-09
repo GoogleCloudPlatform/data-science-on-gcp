@@ -35,12 +35,18 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestStream.ProcessingTimeEvent;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -137,7 +143,13 @@ public class AddRealtimePrediction {
 
     PCollection<Flight> hourlyFlights = allFlights.apply(Window.<Flight> into(SlidingWindows//
         .of(averagingInterval)//
-        .every(averagingFrequency)));
+        .every(averagingFrequency))//
+        /*.triggering(Repeatedly.forever(
+            AfterWatermark.pastEndOfWindow()
+            .withLateFirings(
+                AfterPane.elementCountAtLeast(10))
+            .orFinally(AfterProcessingTime.pastFirstElementInPane()
+                .plusDelayOf(Duration.standardMinutes(10)))))*/);
 
     PCollection<KV<String, Double>> avgArrDelay = CreateTrainingDataset.computeAverageArrivalDelay(hourlyFlights);
 
