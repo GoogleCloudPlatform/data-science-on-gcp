@@ -72,6 +72,7 @@ if __name__ == '__main__':
    parser.add_argument('--startTime', help='Example: 2015-05-01 00:00:00 UTC', required=True)
    parser.add_argument('--endTime', help='Example: 2015-05-03 00:00:00 UTC', required=True)
    parser.add_argument('--speedFactor', help='Example: 60 implies 1 hour of data sent to Cloud Pub/Sub in 1 minute', required=True, type=float)
+   parser.add_argument('--jitter', help='Add an exponential distributed random jitter?', default=False, action='store_true')
 
    # set up BigQuery bqclient
    logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
@@ -81,12 +82,15 @@ if __name__ == '__main__':
    if not dataset.exists():
       logging.error('Did not find a dataset named <flights> in your project')
       exit(-1)
-  
+ 
+   # jitter?
+   jitter = 'CAST (-LN(RAND()*0.99 + 0.01)*30 + 90.5 AS INT64)' if args.jitter else '0'
+ 
    # run the query to pull simulated events
    querystr = """\
 SELECT
   EVENT,
-  NOTIFY_TIME,
+  TIMESTAMP_ADD(NOTIFY_TIME, INTERVAL {} SECOND) AS NOTIFY_TIME,
   EVENT_DATA
 FROM
   `cloud-training-demos.flights.simevents`
@@ -96,8 +100,9 @@ WHERE
 ORDER BY
   NOTIFY_TIME ASC
 """
-   query = bqclient.run_sync_query(querystr.format(args.startTime,
-                                                 args.endTime))
+   query = bqclient.run_sync_query(querystr.format(jitter,
+                                                   args.startTime,
+                                                   args.endTime))
    query.use_legacy_sql = False # standard SQL
    query.timeout_ms = 2000
    query.max_results = 1000  # at a time
