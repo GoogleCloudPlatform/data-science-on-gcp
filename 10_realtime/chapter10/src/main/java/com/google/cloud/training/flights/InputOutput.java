@@ -1,5 +1,7 @@
 package com.google.cloud.training.flights;
 
+import java.io.Serializable;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -11,7 +13,7 @@ import com.google.cloud.training.flights.AddRealtimePrediction.MyOptions;
 import com.google.cloud.training.flights.Flight.INPUTCOLS;
 
 @SuppressWarnings("serial")
-public abstract class InputOutput {
+public abstract class InputOutput implements Serializable {
   public abstract PCollection<Flight> readFlights(Pipeline p, MyOptions options);
   public abstract void writeFlights(PCollection<Flight> outFlights, MyOptions options);
 
@@ -31,9 +33,9 @@ public abstract class InputOutput {
       c.output(KV.of(key, f));
     }
   }
+  
   public PCollection<FlightPred> addPredictionInBatches(PCollection<Flight> outFlights) {
-    
-    PCollection<FlightPred> lines = outFlights //
+    return outFlights //
         .apply("Batch->Flight", ParDo.of(new CreateBatch())) //
         .apply("CreateBatches", GroupByKey.<String, Flight> create()) // within window
         .apply("Inference", ParDo.of(new DoFn<KV<String, Iterable<Flight>>, FlightPred>() {
@@ -68,7 +70,6 @@ public abstract class InputOutput {
             }
           }
         }));
-    return lines;
   }
   
 

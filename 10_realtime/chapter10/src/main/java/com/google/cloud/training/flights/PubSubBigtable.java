@@ -26,20 +26,25 @@ import com.google.protobuf.ByteString;
 
 @SuppressWarnings("serial")
 public class PubSubBigtable extends PubSubInput {
-  private static final String INSTANCE = "flights";
   private static final String TABLE    = "predictions";
 
   @Override
   public void writeFlights(PCollection<Flight> outFlights, MyOptions options) {
+    final String instance = getInstanceName(options);
     PCollection<FlightPred> preds = addPredictionInBatches(outFlights);
     BigtableOptions.Builder optionsBuilder = //
         new BigtableOptions.Builder()//
             .setProjectId(options.getProject()) //
-            .setInstanceId(INSTANCE);
+            .setInstanceId(instance).setUserAgent("datascience-on-gcp");
     createEmptyTable(options, optionsBuilder);
     PCollection<KV<ByteString, Iterable<Mutation>>> mutations = toMutations(preds);
     mutations.apply("write:cbt", //
         BigtableIO.write().withBigtableOptions(optionsBuilder).withTableId(TABLE));
+  }
+
+  private String getInstanceName(MyOptions options) {
+    final String instance = String.format("projects/%s/instances/flights", options.getProject());
+    return instance;
   }
 
   private PCollection<KV<ByteString, Iterable<Mutation>>> toMutations(PCollection<FlightPred> preds) {
@@ -77,7 +82,8 @@ public class PubSubBigtable extends PubSubInput {
       tableBuilder.putColumnFamilies(col.name(), ColumnFamily.newBuilder().build());
     }
 
-    CreateTableRequest.Builder createTableRequestBuilder = CreateTableRequest.newBuilder().setParent(INSTANCE)
+    String instance = getInstanceName(options);
+    CreateTableRequest.Builder createTableRequestBuilder = CreateTableRequest.newBuilder().setParent(instance)
         .setTableId(TABLE).setTable(tableBuilder.build());
 
     try (BigtableSession session = new BigtableSession(optionsBuilder
