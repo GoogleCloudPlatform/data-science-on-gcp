@@ -98,8 +98,8 @@ public class AddRealtimePrediction {
     Duration averagingInterval = CreateTrainingDataset.AVERAGING_INTERVAL;
     Duration averagingFrequency = CreateTrainingDataset.AVERAGING_FREQUENCY;
     if (options.isRealtime()) {
-      io = new PubSubBigQuery();
-      // io = new PubSubBigtable();
+      // io = new PubSubBigQuery();
+      io = new PubSubBigtable();
       // If we need to average over 60 minutes and speedup is 30x,
       // then we need to average over 2 minutes of sped-up stream
       averagingInterval = averagingInterval.dividedBy(options.getSpeedupFactor());

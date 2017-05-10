@@ -14,6 +14,7 @@ import org.apache.beam.sdk.values.PCollection;
 
 import com.google.bigtable.admin.v2.ColumnFamily;
 import com.google.bigtable.admin.v2.CreateTableRequest;
+import com.google.bigtable.admin.v2.GetTableRequest;
 import com.google.bigtable.admin.v2.Table;
 import com.google.bigtable.v2.Mutation;
 import com.google.cloud.bigtable.config.BigtableOptions;
@@ -26,25 +27,26 @@ import com.google.protobuf.ByteString;
 
 @SuppressWarnings("serial")
 public class PubSubBigtable extends PubSubInput {
-  private static final String TABLE    = "predictions";
-
+  private static String INSTANCE_ID = "flights";
+  private String getInstanceName(MyOptions options) {
+    return String.format("projects/%s/instances/%s", options.getProject(), INSTANCE_ID);
+  }
+  private static String TABLE_ID = "predictions";
+  private String getTableName(MyOptions options) {
+    return String.format("%s/tables/%s", getInstanceName(options), TABLE_ID);
+  }
+  
   @Override
   public void writeFlights(PCollection<Flight> outFlights, MyOptions options) {
-    final String instance = getInstanceName(options);
     PCollection<FlightPred> preds = addPredictionInBatches(outFlights);
     BigtableOptions.Builder optionsBuilder = //
         new BigtableOptions.Builder()//
             .setProjectId(options.getProject()) //
-            .setInstanceId(instance).setUserAgent("datascience-on-gcp");
+            .setInstanceId(INSTANCE_ID).setUserAgent("datascience-on-gcp");
     createEmptyTable(options, optionsBuilder);
     PCollection<KV<ByteString, Iterable<Mutation>>> mutations = toMutations(preds);
     mutations.apply("write:cbt", //
-        BigtableIO.write().withBigtableOptions(optionsBuilder).withTableId(TABLE));
-  }
-
-  private String getInstanceName(MyOptions options) {
-    final String instance = String.format("projects/%s/instances/flights", options.getProject());
-    return instance;
+        BigtableIO.write().withBigtableOptions(optionsBuilder.build()).withTableId(TABLE_ID));
   }
 
   private PCollection<KV<ByteString, Iterable<Mutation>>> toMutations(PCollection<FlightPred> preds) {
@@ -52,7 +54,11 @@ public class PubSubBigtable extends PubSubInput {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         FlightPred pred = c.element();
-        ByteString key = null;
+        String key = pred.flight.getField(INPUTCOLS.ORIGIN) //
+            + "#" + pred.flight.getField(INPUTCOLS.DEST) // 
+            + "#" + pred.flight.getField(INPUTCOLS.CARRIER) //
+            + "#" + pred.flight.getField(INPUTCOLS.EVENT) //
+            + "#" + pred.flight.getField(INPUTCOLS.CRS_DEP_TIME);
         List<Mutation> mutations = new ArrayList<>();
         for (INPUTCOLS col : INPUTCOLS.values()) {
           setCell(mutations, col.name(), pred.flight.getField(col));
@@ -60,7 +66,7 @@ public class PubSubBigtable extends PubSubInput {
         if (pred.ontime >= 0) {
           setCell(mutations, "ontime", new DecimalFormat("0.00").format(pred.ontime));
         }
-        c.output(KV.of(key, mutations));
+        c.output(KV.of(ByteString.copyFromUtf8(key), mutations));
       }
     }));
   }
@@ -81,15 +87,24 @@ public class PubSubBigtable extends PubSubInput {
     for (INPUTCOLS col : INPUTCOLS.values()) {
       tableBuilder.putColumnFamilies(col.name(), ColumnFamily.newBuilder().build());
     }
-
-    String instance = getInstanceName(options);
-    CreateTableRequest.Builder createTableRequestBuilder = CreateTableRequest.newBuilder().setParent(instance)
-        .setTableId(TABLE).setTable(tableBuilder.build());
+    tableBuilder.putColumnFamilies("ontime", ColumnFamily.newBuilder().build());
 
     try (BigtableSession session = new BigtableSession(optionsBuilder
         .setCredentialOptions(CredentialOptions.credential(options.as(GcpOptions.class).getGcpCredential())).build())) {
       BigtableTableAdminClient tableAdminClient = session.getTableAdminClient();
-      tableAdminClient.createTable(createTableRequestBuilder.build());
+      
+      try {
+        // if get fails, then create
+        String tableName = getTableName(options); 
+        GetTableRequest.Builder getTableRequestBuilder = GetTableRequest.newBuilder().setName(tableName);
+        tableAdminClient.getTable(getTableRequestBuilder.build());
+      } catch (Exception e) {
+        CreateTableRequest.Builder createTableRequestBuilder = //
+            CreateTableRequest.newBuilder().setParent(getInstanceName(options)) //
+            .setTableId(TABLE_ID).setTable(tableBuilder.build());
+        tableAdminClient.createTable(createTableRequestBuilder.build());
+      }
+      
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
