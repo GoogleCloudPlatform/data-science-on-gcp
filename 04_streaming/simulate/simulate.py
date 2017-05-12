@@ -23,9 +23,10 @@ from google.cloud import pubsub
 import google.cloud.bigquery as bq
 
 TIME_FORMAT = '%Y-%m-%d %H:%M:%S %Z'
+RFC3339_TIME_FORMAT = '%Y-%m-%dT%H:%M:%S-00:00'
 
 def publish(topics, allevents, notify_time):
-   timestamp = notify_time.strftime(TIME_FORMAT)
+   timestamp = notify_time.strftime(RFC3339_TIME_FORMAT)
    for key in topics:  # 'departed', 'arrived', etc.
       topic = topics[key]
       events = allevents[key]

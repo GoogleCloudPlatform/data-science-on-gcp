@@ -29,7 +29,7 @@ public abstract class PubSubInput extends InputOutput {
     for (String eventType : new String[]{"wheelsoff", "arrived"}){
       String topic = "projects/" + options.getProject() + "/topics/" + eventType;
       PCollection<Flight> flights = p.apply(eventType + ":read",
-          PubsubIO.<String> read().topic(topic).withCoder(StringUtf8Coder.of())/*.timestampLabel("EventTimeStamp")*/) //
+          PubsubIO.<String> read().topic(topic).withCoder(StringUtf8Coder.of()).timestampLabel("EventTimeStamp")) //
           .apply(eventType + ":parse", ParDo.of(new DoFn<String, Flight>() {
             @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
@@ -54,12 +54,12 @@ public abstract class PubSubInput extends InputOutput {
     for (String eventType : new String[]{"wheelsoff", "arrived"}){
       String topic = "projects/" + options.getProject() + "/topics/" + eventType;
       p.apply(eventType + ":read", //
-          PubsubIO.<String> read().topic(topic).withCoder(StringUtf8Coder.of())) //
-      .apply(eventType + ":write", PubsubIO.<String> write().topic(tempTopic).withCoder(StringUtf8Coder.of()));
+          PubsubIO.<String> read().topic(topic).withCoder(StringUtf8Coder.of()).timestampLabel("EventTimeStamp")) //
+      .apply(eventType + ":write", PubsubIO.<String> write().topic(tempTopic).withCoder(StringUtf8Coder.of()).timestampLabel("EventTimeStamp"));
     }
 
     return p.apply("combined:read",
-        PubsubIO.<String> read().topic(tempTopic).withCoder(StringUtf8Coder.of())) //
+        PubsubIO.<String> read().topic(tempTopic).withCoder(StringUtf8Coder.of()).timestampLabel("EventTimeStamp")) //
         .apply("parse", ParDo.of(new DoFn<String, Flight>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
