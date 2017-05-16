@@ -31,7 +31,7 @@ def publish(topics, allevents, notify_time):
       topic = topics[key]
       events = allevents[key]
       with topic.batch() as batch:
-         logging.info('Publishing {} {} events'.format(len(events), key))
+         logging.info('Publishing {} {} till {}'.format(len(events), key, timestamp))
          for event_data in events:
               batch.publish(event_data, EventTimeStamp=timestamp)
 
@@ -73,7 +73,7 @@ if __name__ == '__main__':
    parser.add_argument('--startTime', help='Example: 2015-05-01 00:00:00 UTC', required=True)
    parser.add_argument('--endTime', help='Example: 2015-05-03 00:00:00 UTC', required=True)
    parser.add_argument('--speedFactor', help='Example: 60 implies 1 hour of data sent to Cloud Pub/Sub in 1 minute', required=True, type=float)
-   parser.add_argument('--jitter', help='Add an exponential distributed random jitter?', default=False, action='store_true')
+   parser.add_argument('--jitter', help='type of jitter to add: None, uniform, exp  are the three options', default='None')
 
    # set up BigQuery bqclient
    logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
@@ -85,7 +85,13 @@ if __name__ == '__main__':
       exit(-1)
  
    # jitter?
-   jitter = 'CAST (-LN(RAND()*0.99 + 0.01)*30 + 90.5 AS INT64)' if args.jitter else '0'
+   if args.jitter == 'exp':
+      jitter = 'CAST (-LN(RAND()*0.99 + 0.01)*30 + 90.5 AS INT64)'
+   elif args.jitter == 'uniform':
+      jitter = 'CAST(90.5 + RAND()*30 AS INT64)'
+   else:
+      jitter = '0'
+
  
    # run the query to pull simulated events
    querystr = """\
