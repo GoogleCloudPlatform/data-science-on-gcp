@@ -11,6 +11,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.DateTime;
 
 import com.google.bigtable.admin.v2.ColumnFamily;
 import com.google.bigtable.admin.v2.CreateTableRequest;
@@ -35,6 +36,7 @@ public class PubSubBigtable extends PubSubInput {
   private String getTableName(MyOptions options) {
     return String.format("%s/tables/%s", getInstanceName(options), TABLE_ID);
   }
+  private static final String CF_FAMILY = "FL";
   
   @Override
   public void writeFlights(PCollection<Flight> outFlights, MyOptions options) {
@@ -57,26 +59,35 @@ public class PubSubBigtable extends PubSubInput {
         String key = pred.flight.getField(INPUTCOLS.ORIGIN) //
             + "#" + pred.flight.getField(INPUTCOLS.DEST) // 
             + "#" + pred.flight.getField(INPUTCOLS.CARRIER) //
-            + "#" + pred.flight.getField(INPUTCOLS.EVENT) //
-            + "#" + pred.flight.getField(INPUTCOLS.CRS_DEP_TIME);
+            + "#" + getReverseTimestamp(pred.flight.getFieldAsDateTime(INPUTCOLS.CRS_DEP_TIME));
         List<Mutation> mutations = new ArrayList<>();
+        long ts = pred.flight.getEventTimestamp().getMillis();
         for (INPUTCOLS col : INPUTCOLS.values()) {
-          setCell(mutations, col.name(), pred.flight.getField(col));
+          addCell(mutations, col.name(), pred.flight.getField(col), ts);
         }
         if (pred.ontime >= 0) {
-          setCell(mutations, "ontime", new DecimalFormat("0.00").format(pred.ontime));
+          addCell(mutations, "ontime", new DecimalFormat("0.00").format(pred.ontime), ts);
         }
         c.output(KV.of(ByteString.copyFromUtf8(key), mutations));
+      }
+
+      private long getReverseTimestamp(DateTime timestamp) {
+        return Long.MAX_VALUE - timestamp.getMillis();
       }
     }));
   }
 
-  private void setCell(List<Mutation> mutations, String cellName, String cellValue) {
+  private void addCell(List<Mutation> mutations, String cellName, String cellValue, long ts) {
     if (cellValue.length() > 0) {
       ByteString value = ByteString.copyFromUtf8(cellValue);
+      ByteString colname = ByteString.copyFromUtf8(cellName);
       Mutation m = //
           Mutation.newBuilder().setSetCell(//
-              Mutation.SetCell.newBuilder().setValue(value).setFamilyName(cellName)//
+                  Mutation.SetCell.newBuilder() //
+                      .setValue(value)//
+                      .setFamilyName(CF_FAMILY)//
+                      .setColumnQualifier(colname)//
+                      .setTimestampMicros(ts) //
           ).build();
       mutations.add(m);
     }
@@ -84,11 +95,9 @@ public class PubSubBigtable extends PubSubInput {
 
   private void createEmptyTable(MyOptions options, BigtableOptions.Builder optionsBuilder) {
     Table.Builder tableBuilder = Table.newBuilder();
-    for (INPUTCOLS col : INPUTCOLS.values()) {
-      tableBuilder.putColumnFamilies(col.name(), ColumnFamily.newBuilder().build());
-    }
-    tableBuilder.putColumnFamilies("ontime", ColumnFamily.newBuilder().build());
-
+    ColumnFamily cf = ColumnFamily.newBuilder().build();
+    tableBuilder.putColumnFamilies(CF_FAMILY, cf);
+ 
     try (BigtableSession session = new BigtableSession(optionsBuilder
         .setCredentialOptions(CredentialOptions.credential(options.as(GcpOptions.class).getGcpCredential())).build())) {
       BigtableTableAdminClient tableAdminClient = session.getTableAdminClient();

@@ -69,6 +69,11 @@ public class Flight {
   public float getFieldAsFloat(INPUTCOLS col) {
     return Float.parseFloat(fields[col.ordinal()]);
   }
+  
+  public DateTime getFieldAsDateTime(INPUTCOLS col) {
+    String timestamp = getField(col).replace('T', ' ');
+    return fmt.parseDateTime(timestamp);   
+  }
 
   public float getFieldAsFloat(INPUTCOLS col, float defaultValue) {
     String s = fields[col.ordinal()];
@@ -82,9 +87,8 @@ public class Flight {
   private static DateTimeFormatter fmt = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
 
   public int getDepartureHour() {
-    String timestamp = getField(INPUTCOLS.DEP_TIME).replace('T', ' ');
     float offset = getFieldAsFloat(INPUTCOLS.DEP_AIRPORT_TZOFFSET);
-    DateTime dt = fmt.parseDateTime(timestamp);
+    DateTime dt = getFieldAsDateTime(INPUTCOLS.DEP_TIME);
     dt = dt.plusMinutes((int) (0.5 + offset));
     return dt.getHourOfDay();
   }
