@@ -106,9 +106,7 @@ public class CreateTrainingDataset {
 
     PCollectionView<Map<String, Double>> avgDepDelay = depDelays.apply("depdelay->map", View.asMap());
 
-    PCollection<Flight> hourlyFlights = allFlights.apply(Window.<Flight> into(SlidingWindows//
-        .of(AVERAGING_INTERVAL)//
-        .every(AVERAGING_FREQUENCY))); // .discardingFiredPanes());
+    PCollection<Flight> hourlyFlights = applyTimeWindow(allFlights);
 
     PCollection<KV<String, Double>> avgArrDelay = computeAverageArrivalDelay(hourlyFlights);
 
@@ -125,6 +123,12 @@ public class CreateTrainingDataset {
       // for small datasets, block
       result.waitUntilFinish();
     }
+  }
+
+  protected static PCollection<Flight> applyTimeWindow(PCollection<Flight> allFlights) {
+    return allFlights.apply(Window.<Flight> into(SlidingWindows//
+        .of(AVERAGING_INTERVAL)//
+        .every(AVERAGING_FREQUENCY)));
   }
 
   private static PCollection<KV<String, Double>> computeAverageDepartureDelay(PCollection<Flight> allFlights,
@@ -160,7 +164,7 @@ public class CreateTrainingDataset {
         .apply("WriteDepDelays", TextIO.Write.to(options.getOutput() + "delays").withSuffix(".csv").withoutSharding());
   }
 
-  private static PCollection<Flight> readFlights(Pipeline p, String query) {
+  static PCollection<Flight> readFlights(Pipeline p, String query) {
     PCollection<Flight> allFlights = p //
         .apply("ReadLines", BigQueryIO.Read.fromQuery(query)) //
         .apply("ParseFlights", ParDo.of(new DoFn<TableRow, Flight>() {

@@ -1,6 +1,6 @@
 #!/bin/bash
-export YEAR=2015
+export YEAR=2016
 bash download.sh
 bash zip_to_csv.sh
 bash quotes_comma.sh
-bash upload.sh
+gsutil -m cp *.csv gs://$BUCKET/flights2016/raw

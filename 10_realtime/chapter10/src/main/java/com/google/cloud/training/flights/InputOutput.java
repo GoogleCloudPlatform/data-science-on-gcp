@@ -34,7 +34,12 @@ public abstract class InputOutput implements Serializable {
     }
   }
   
-  public PCollection<FlightPred> addPredictionInBatches(PCollection<Flight> outFlights) {
+  public static PCollection<FlightPred> addPredictionInBatches(PCollection<Flight> outFlights) {
+    return addPredictionInBatches(outFlights, false);
+  }
+  
+  public static PCollection<FlightPred> addPredictionInBatches(PCollection<Flight> outFlights, //
+      boolean predictArrivedAlso) {
     return outFlights //
         .apply("Batch->Flight", ParDo.of(new CreateBatch())) //
         .apply("CreateBatches", GroupByKey.<String, Flight> create()) // within window
@@ -53,7 +58,7 @@ public abstract class InputOutput implements Serializable {
             }
 
             // for arrived events, emit actual ontime performance
-            if (key.startsWith("arrived")) {
+            if (key.startsWith("arrived") && !predictArrivedAlso) {
               for (Flight f : flights) {
                 double ontime = f.getFieldAsFloat(INPUTCOLS.ARR_DELAY, 0) < 15 ? 1 : 0;
                 c.output(new FlightPred(f, ontime));

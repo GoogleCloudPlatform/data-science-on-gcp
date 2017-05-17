@@ -71,7 +71,7 @@ public class AddRealtimePrediction {
     void setSpeedupFactor(long d);
   }
 
-  private static PCollectionView<Map<String, Double>> readAverageDepartureDelay(Pipeline p, String path) {
+  static PCollectionView<Map<String, Double>> readAverageDepartureDelay(Pipeline p, String path) {
     return p.apply("Read delays.csv", TextIO.Read.from(path)) //
         .apply("Parse delays.csv", ParDo.of(new DoFn<String, KV<String, Double>>() {
           @ProcessElement

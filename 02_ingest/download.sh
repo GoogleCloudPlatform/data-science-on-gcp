@@ -1,6 +1,7 @@
 #!/bin/bash
 
-YEAR=2015
+echo ${YEAR:=2015}  # default if YEAR not set
+
 for MONTH in `seq -w 1 12`; do
 
 echo $YEAR$MONTH
