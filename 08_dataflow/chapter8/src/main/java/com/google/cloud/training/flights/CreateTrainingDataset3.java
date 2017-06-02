@@ -54,7 +54,7 @@ public class CreateTrainingDataset3 {
     Pipeline p = Pipeline.create(options);
 
     p //
-        .apply("ReadLines", TextIO.Read.from(options.getInput())) //
+        .apply("ReadLines", TextIO.read().from(options.getInput())) //
         .apply("ParseFlights", ParDo.of(new DoFn<String, Flight>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
@@ -84,7 +84,7 @@ public class CreateTrainingDataset3 {
           }
         })) //
         .apply("WriteFlights", //
-            TextIO.Write.to(options.getOutput() + "flights3")//
+            TextIO.write().to(options.getOutput() + "flights3")//
                 .withSuffix(".csv").withoutSharding());
 
     p.run();

@@ -58,7 +58,7 @@ public class CreateTrainingDataset4 {
     Pipeline p = Pipeline.create(options);
 
     PCollection<Flight> flights = p //
-        .apply("ReadLines", TextIO.Read.from(options.getInput())) //
+        .apply("ReadLines", TextIO.read().from(options.getInput())) //
         .apply("ParseFlights", ParDo.of(new DoFn<String, Flight>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
@@ -103,7 +103,7 @@ public class CreateTrainingDataset4 {
         c.output(kv.getKey() + "," + kv.getValue());
       }
     })) //
-        .apply("WriteDelays", TextIO.Write.to(options.getOutput() + "delays4").withSuffix(".csv").withoutSharding());
+        .apply("WriteDelays", TextIO.write().to(options.getOutput() + "delays4").withSuffix(".csv").withoutSharding());
 
     flights.apply("ToCsv", ParDo.of(new DoFn<Flight, String>() {
       @ProcessElement
@@ -114,7 +114,7 @@ public class CreateTrainingDataset4 {
         }
       }
     })) //
-        .apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights4").withSuffix(".csv").withoutSharding());
+        .apply("WriteFlights", TextIO.write().to(options.getOutput() + "flights4").withSuffix(".csv").withoutSharding());
 
     p.run();
   }

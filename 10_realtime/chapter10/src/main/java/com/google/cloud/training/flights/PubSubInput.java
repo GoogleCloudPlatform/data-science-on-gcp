@@ -1,8 +1,7 @@
 package com.google.cloud.training.flights;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -29,7 +28,7 @@ public abstract class PubSubInput extends InputOutput {
     for (String eventType : new String[]{"wheelsoff", "arrived"}){
       String topic = "projects/" + options.getProject() + "/topics/" + eventType;
       PCollection<Flight> flights = p.apply(eventType + ":read",
-          PubsubIO.<String> read().topic(topic).withCoder(StringUtf8Coder.of()).timestampLabel("EventTimeStamp")) //
+          PubsubIO.readStrings().fromTopic(topic).withTimestampAttribute("EventTimeStamp")) //
           .apply(eventType + ":parse", ParDo.of(new DoFn<String, Flight>() {
             @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
@@ -54,12 +53,12 @@ public abstract class PubSubInput extends InputOutput {
     for (String eventType : new String[]{"wheelsoff", "arrived"}){
       String topic = "projects/" + options.getProject() + "/topics/" + eventType;
       p.apply(eventType + ":read", //
-          PubsubIO.<String> read().topic(topic).withCoder(StringUtf8Coder.of()).timestampLabel("EventTimeStamp")) //
-      .apply(eventType + ":write", PubsubIO.<String> write().topic(tempTopic).withCoder(StringUtf8Coder.of()).timestampLabel("EventTimeStamp"));
+          PubsubIO.readStrings().fromTopic(topic).withTimestampAttribute("EventTimeStamp")) //
+      .apply(eventType + ":write", PubsubIO.writeStrings().to(tempTopic).withTimestampAttribute("EventTimeStamp"));
     }
 
     return p.apply("combined:read",
-        PubsubIO.<String> read().topic(tempTopic).withCoder(StringUtf8Coder.of()).timestampLabel("EventTimeStamp")) //
+        PubsubIO.readStrings().fromTopic(tempTopic).withTimestampAttribute("EventTimeStamp")) //
         .apply("parse", ParDo.of(new DoFn<String, Flight>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {

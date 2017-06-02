@@ -72,7 +72,7 @@ public class AddRealtimePrediction {
   }
 
   static PCollectionView<Map<String, Double>> readAverageDepartureDelay(Pipeline p, String path) {
-    return p.apply("Read delays.csv", TextIO.Read.from(path)) //
+    return p.apply("Read delays.csv", TextIO.read().from(path)) //
         .apply("Parse delays.csv", ParDo.of(new DoFn<String, KV<String, Double>>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {

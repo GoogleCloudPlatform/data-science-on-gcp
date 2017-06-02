@@ -26,7 +26,7 @@ public class BatchInputOutput extends InputOutput {
     LOG.info(query);
 
     PCollection<Flight> allFlights = p //
-        .apply("ReadLines", BigQueryIO.Read.fromQuery(query)) //
+        .apply("ReadLines", BigQueryIO.read().fromQuery(query)) //
         .apply("ParseFlights", ParDo.of(new DoFn<TableRow, Flight>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
@@ -47,7 +47,7 @@ public class BatchInputOutput extends InputOutput {
     try {
       PCollection<FlightPred> prds = addPredictionInBatches(outFlights);
       PCollection<String> lines = predToCsv(prds);
-      lines.apply("Write", TextIO.Write.to(options.getOutput() + "flightPreds").withSuffix(".csv"));
+      lines.apply("Write", TextIO.write().to(options.getOutput() + "flightPreds").withSuffix(".csv"));
     } catch (Throwable t) {
       LOG.warn("Inference failed", t);
     }

@@ -95,7 +95,7 @@ public class CreateTrainingDataset8 {
             }
           }
         })) //
-        .apply("TrainOnly", ParDo.withSideInputs(traindays).of(new DoFn<Flight, Flight>() {
+        .apply("TrainOnly", ParDo.of(new DoFn<Flight, Flight>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
             Flight f = c.element();
@@ -105,7 +105,7 @@ public class CreateTrainingDataset8 {
               c.output(f);
             }
           }
-        })) //
+        }).withSideInputs(traindays)) //
         .apply("GoodFlights", ParDo.of(new DoFn<Flight, Flight>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
@@ -158,7 +158,7 @@ public class CreateTrainingDataset8 {
     PCollectionView<Map<String, Double>> avgDepDelay = depDelays.apply("depdelay->map", View.asMap());
     PCollectionView<Map<String, Double>> avgArrDelay = arrDelays.apply("arrdelay->map", View.asMap());
     
-    flights = lastHourFlights.apply("AddDelayInfo", ParDo.withSideInputs(avgDepDelay, avgArrDelay).of(new DoFn<Flight, Flight>() {
+    flights = lastHourFlights.apply("AddDelayInfo", ParDo.of(new DoFn<Flight, Flight>() {
 
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
@@ -172,7 +172,7 @@ public class CreateTrainingDataset8 {
         c.output(f);
       }
 
-    }));
+    }).withSideInputs(avgDepDelay, avgArrDelay));
     
     depDelays.apply("DepDelayToCsv", ParDo.of(new DoFn<KV<String, Double>, String>() {
       @ProcessElement
@@ -181,7 +181,7 @@ public class CreateTrainingDataset8 {
         c.output(kv.getKey() + "," + kv.getValue());
       }
     })) //
-        .apply("WriteDepDelays", TextIO.Write.to(options.getOutput() + "delays8").withSuffix(".csv").withoutSharding()); 
+        .apply("WriteDepDelays", TextIO.write().to(options.getOutput() + "delays8").withSuffix(".csv").withoutSharding()); 
 
     flights.apply("ToCsv", ParDo.of(new DoFn<Flight, String>() {
       @ProcessElement
@@ -192,14 +192,14 @@ public class CreateTrainingDataset8 {
         }
       }
     })) //
-        .apply("WriteFlights", TextIO.Write.to(options.getOutput() + "flights8").withSuffix(".csv").withoutSharding());
+        .apply("WriteFlights", TextIO.write().to(options.getOutput() + "flights8").withSuffix(".csv").withoutSharding());
 
     p.run();
   }
 
   @SuppressWarnings("serial")
   private static PCollectionView<Map<String, String>> getTrainDays(Pipeline p, String path) {
-    return p.apply("Read trainday.csv", TextIO.Read.from(path)) //
+    return p.apply("Read trainday.csv", TextIO.read().from(path)) //
         .apply("Parse trainday.csv", ParDo.of(new DoFn<String, KV<String, String>>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {

@@ -117,7 +117,7 @@ public class EvaluateModel {
         c.output(toEvalCsv(fp));
       }
     })) //
-    .apply("Write", TextIO.Write.to(options.getOutput() + "evalFlights").withSuffix(".csv"));
+    .apply("Write", TextIO.write().to(options.getOutput() + "evalFlights").withSuffix(".csv"));
     
     PipelineResult result = p.run();
     if (!options.getFullDataset()) {

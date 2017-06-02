@@ -36,7 +36,7 @@ public class PubSubBigQuery extends PubSubInput {
     TableSchema schema = new TableSchema().setFields(getTableFields());
     PCollection<FlightPred> preds = addPredictionInBatches(outFlights);
     PCollection<TableRow> rows = toTableRows(preds);
-    rows.apply("flights:write_toBQ",BigQueryIO.Write.to(outputTable) //
+    rows.apply("flights:write_toBQ",BigQueryIO.writeTableRows().to(outputTable) //
         .withSchema(schema)//
         .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
