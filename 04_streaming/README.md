@@ -1,35 +1,36 @@
 To follow the steps in the book:
-* Parsing airports data:
-    ```
-    cd 04_streaming/simulate
-    ./install_packages.sh
-    ./df01.py
-    head extracted_airports-00000*
-    rm extracted_airports-*
-    ```
-* Adding timezone information:
-    ```
-    ./df02.py
-    head airports_with_tz-00000*
-    rm airports_with_tz-*
-    ```
-* Converting times to UTC:
-   ```
-    ./df03.py
-    head -3 all_flights-00000*
-   ```
-* Correcting dates:
-    ```
-    ./df04.py
-    head -3 all_flights-00000*
-    rm all_flights-*
-    ```
-* Create events:
-     ```
-    ./df05.py
-    head -3 all_events-00000*
-    rm all_events-*
-    ```  
+* Batch processing in DataFlow
+	* Parsing airports data:
+	    ```
+	    cd 04_streaming/simulate
+	    ./install_packages.sh
+	    ./df01.py
+	    head extracted_airports-00000*
+	    rm extracted_airports-*
+	    ```
+	* Adding timezone information:
+	    ```
+	    ./df02.py
+	    head airports_with_tz-00000*
+	    rm airports_with_tz-*
+	    ```
+	* Converting times to UTC:
+	   ```
+	    ./df03.py
+	    head -3 all_flights-00000*
+	   ```
+	* Correcting dates:
+	    ```
+	    ./df04.py
+	    head -3 all_flights-00000*
+	    rm all_flights-*
+	    ```
+	* Create events:
+	     ```
+	    ./df05.py
+	    head -3 all_events-00000*
+	    rm all_events-*
+	    ```  
 * Pipeline on GCP:
      * Go to the GCP web console, API & Services section and enable the Dataflow API.
      * In CloudShell, type:
@@ -59,13 +60,14 @@ LIMIT
   10
     ```
 * Stream processing
-  * Follow the OAuth2 workflow so that the python script can run code on your behalf:
+  * Follow the OAuth2 woIn CloudShell, fkflow so that the python script can run code on your behalf:
 ```
 gcloud auth application-default login
 ```
   * Run
 ```
-python simulate.py --startTime '2015-05-01 00:00:00 UTC' --endTime '2015-05-04 00:00:00 UTC' --speedFactor=30
+python 
+If you don't run this command, you will get errors such as "flights dataset does not exist".simulStart the simulation:.py --startTime '2015-05-01 00:00:00 UTC' --endTime '2015-05-04 00:00:00 UTC' --speedFactor=30
 
     ```
   * In another CloudShell tab, run:
@@ -80,7 +82,7 @@ cd 04_streaming/process
 SELECT
   *
 FROM
-  `cloud-training-demos.flights.streaming_delays`
+  `cloud-training-demoslays`
 WHERE
   airport = 'DEN'
 ORDER BY
@@ -107,7 +109,7 @@ FROM (
     LIMIT
       1) last
   FROM
-    `cloud-training-demos.flights.streaming_delays`
+    `cloud-training-demoslays`
   GROUP BY
     airport )
 ```   
