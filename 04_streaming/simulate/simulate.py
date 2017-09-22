@@ -100,7 +100,7 @@ SELECT
   TIMESTAMP_ADD(NOTIFY_TIME, INTERVAL {} SECOND) AS NOTIFY_TIME,
   EVENT_DATA
 FROM
-  `cloud-training-demos.flights.simevents`
+  `flights.simevents`
 WHERE
   NOTIFY_TIME >= TIMESTAMP('{}')
   AND NOTIFY_TIME < TIMESTAMP('{}')
