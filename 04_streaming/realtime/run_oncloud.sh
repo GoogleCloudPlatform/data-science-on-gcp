@@ -1,7 +1,12 @@
 #!/bin/bash
 
-PROJECT=cloud-training-demos
-BUCKET=cloud-training-demos-ml
+if [ "$#" -ne 1 ]; then
+    echo "Usage: ./run_on_cloud.sh  bucket-name"
+    exit
+fi
+
+PROJECT=$DEVSHELL_PROJECT_ID
+BUCKET=$1
 
 cd chapter4
 

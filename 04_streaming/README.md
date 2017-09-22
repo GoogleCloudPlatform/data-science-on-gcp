@@ -58,15 +58,59 @@ ORDER BY NOTIFY_TIME ASC
 LIMIT
   10
     ```
-* Publishing event stream to Pub/Sub
+* Stream processing
   * Follow the OAuth2 workflow so that the python script can run code on your behalf:
 ```
 gcloud auth application-default login
 ```
   * Run
 ```
-python simulate.py --startTime '2015-05-01 00:00:00 UTC' --endTime '2015-05-04 00:00:00 UTC' --speedFactor=60
+python simulate.py --startTime '2015-05-01 00:00:00 UTC' --endTime '2015-05-04 00:00:00 UTC' --speedFactor=30
 
     ```
-  * 
-    
+  * In another CloudShell tab, run:
+```
+cd 04_streaming/process
+./run_on_cloud.sh <BUCKET-NAME>
+```
+  * Go to the GCP web console in the Dataflow section and monitor the job.
+  * Once you see events being written into BigQuery, you can query them from the BigQuery console:
+```
+#standardsql
+SELECT
+  *
+FROM
+  `cloud-training-demos.flights.streaming_delays`
+WHERE
+  airport = 'DEN'
+ORDER BY
+  timestamp DESC
+```
+  * In BigQuery, run this query and save this as a view:
+```
+#standardSQL
+SELECT
+  airport,
+  last[safe_OFFSET(0)].*,
+  CONCAT(CAST(last[safe_OFFSET(0)].latitude AS STRING), ",", CAST(last[safe_OFFSET(0)].longitude AS STRING)) AS location
+FROM (
+  SELECT
+    airport,
+    ARRAY_AGG(STRUCT(arr_delay,
+        dep_delay,
+        timestamp,
+        latitude,
+        longitude,
+        num_flights)
+    ORDER BY
+      timestamp DESC
+    LIMIT
+      1) last
+  FROM
+    `cloud-training-demos.flights.streaming_delays`
+  GROUP BY
+    airport )
+```   
+  * Follow the steps in the chapter to connect to Data Studio and create a GeoMap.
+  * Stop the simulation program in CloudShell.
+  * From the GCP web console, stop the Dataflow streaming pipeline.

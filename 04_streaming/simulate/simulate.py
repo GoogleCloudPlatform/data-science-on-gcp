@@ -112,7 +112,7 @@ ORDER BY
                                                    args.endTime))
    query.use_legacy_sql = False # standard SQL
    query.timeout_ms = 2000
-   query.max_results = 1000  # at a time
+   query.max_results = 100  # at a time
    query.run()
 
    # wait for query to complete and fetch first page of data
@@ -133,7 +133,9 @@ ORDER BY
          logging.error('Job failed')
          logging.error(query.errors)
          exit(-1)
-      rows, total_count, token = query.fetch_data()
+      iterator = query.fetch_data()
+      rows = query.rows
+      token = query.page_token      
 
    # create one Pub/Sub notification topic for each type of event
    psclient = pubsub.Client()
@@ -151,5 +153,8 @@ ORDER BY
       notify(topics, rows, simStartTime, programStartTime, args.speedFactor)
       if token is None:
          break
-      rows, total_count, token = query.fetch_data(page_token=token)
+      #rows, total_count, token = query.fetch_data(page_token=token)
+      print 'Fetching next page of results ... '
+      rows = query.fetch_data(page_token=token)
+      token = query.page_token      
       
