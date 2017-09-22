@@ -89,7 +89,7 @@ def get_next_event(fields):
        event.extend(['arrived', fields[21]])
        yield event
  
-def run()
+def run():
    pipeline = beam.Pipeline('DirectRunner')
 
    airports = (pipeline 

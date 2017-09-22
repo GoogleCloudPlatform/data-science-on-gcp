@@ -159,4 +159,10 @@ def run(project, bucket, dataset):
    pipeline.run()
 
 if __name__ == '__main__':
-   run(project='cloud-training-demos', bucket='cloud-training-demos-ml', dataset='flights')
+   import argparse
+   parser = argparse.ArgumentParser(description='Run pipeline on the cloud')
+   parser.add_argument('-p','--project', help='Unique project ID', required=True)
+   parser.add_argument('-b','--bucket', help='Bucket where your data were ingested in Chapter 2', required=True)
+   args = vars(parser.parse_args())
+
+   run(project=args['project'], bucket=args['bucket'], dataset='flights')
