@@ -41,78 +41,76 @@ To follow the steps in the book:
        ``` 
      * Go to the GCP web console and wait for the Dataflow ch04timecorr job to finish. It might take several  
      * Then, navigate to the BigQuery console and type in:
-    ```
-SELECT
-  ORIGIN,
-  DEP_TIME,
-  DEP_DELAY,
-  DEST,
-  ARR_TIME,
-  ARR_DELAY,
-  NOTIFY_TIME
-FROM
-  flights.simevents
-WHERE
-  (DEP_DELAY > 15 and ORIGIN = 'SEA') or
-  (ARR_DELAY > 15 and DEST = 'SEA')
-ORDER BY NOTIFY_TIME ASC
-LIMIT
-  10
-    ```
+	    ```
+		SELECT
+		  ORIGIN,
+		  DEP_TIME,
+		  DEP_DELAY,
+		  DEST,
+		  ARR_TIME,
+		  ARR_DELAY,
+		  NOTIFY_TIME
+		FROM
+		  flights.simevents
+		WHERE
+		  (DEP_DELAY > 15 and ORIGIN = 'SEA') or
+		  (ARR_DELAY > 15 and DEST = 'SEA')
+		ORDER BY NOTIFY_TIME ASC
+		LIMIT
+		  10
+	    ```
 * Stream processing
-  * Follow the OAuth2 woIn CloudShell, fkflow so that the python script can run code on your behalf:
-```
-gcloud auth application-default login
-```
-  * Run
-```
-python 
-If you don't run this command, you will get errors such as "flights dataset does not exist".simulStart the simulation:.py --startTime '2015-05-01 00:00:00 UTC' --endTime '2015-05-04 00:00:00 UTC' --speedFactor=30
-
+	* Follow the OAuth2 woIn CloudShell, fkflow so that the python script can run code on your behalf:
+	```
+	gcloud auth application-default login
+	```
+	* Run
+	```
+	python .simulate.py --startTime '2015-05-01 00:00:00 UTC' --endTime '2015-05-04 00:00:00 UTC' --speedFactor=30
     ```
-  * In another CloudShell tab, run:
-```
-cd 04_streaming/process
-./run_on_cloud.sh <BUCKET-NAME>
-```
-  * Go to the GCP web console in the Dataflow section and monitor the job.
-  * Once you see events being written into BigQuery, you can query them from the BigQuery console:
-```
-#standardsql
-SELECT
-  *
-FROM
-  `cloud-training-demoslays`
-WHERE
-  airport = 'DEN'
-ORDER BY
-  timestamp DESC
-```
-  * In BigQuery, run this query and save this as a view:
-```
-#standardSQL
-SELECT
-  airport,
-  last[safe_OFFSET(0)].*,
-  CONCAT(CAST(last[safe_OFFSET(0)].latitude AS STRING), ",", CAST(last[safe_OFFSET(0)].longitude AS STRING)) AS location
-FROM (
-  SELECT
-    airport,
-    ARRAY_AGG(STRUCT(arr_delay,
-        dep_delay,
-        timestamp,
-        latitude,
-        longitude,
-        num_flights)
-    ORDER BY
-      timestamp DESC
-    LIMIT
-      1) last
-  FROM
-    `cloud-training-demoslays`
-  GROUP BY
-    airport )
-```   
-  * Follow the steps in the chapter to connect to Data Studio and create a GeoMap.
-  * Stop the simulation program in CloudShell.
-  * From the GCP web console, stop the Dataflow streaming pipeline.
+	* In another CloudShell tab, run:
+	```
+	cd 04_streaming/process
+	./run_on_cloud.sh <BUCKET-NAME>
+	```
+	* Go to the GCP web console in the Dataflow section and monitor the job.
+	* Once you see events being written into BigQuery, you can query them from the BigQuery console:
+		```
+		#standardsql
+		SELECT
+		  *
+		FROM
+		  `flights.streaming_delays`
+		WHERE
+		  airport = 'DEN'
+		ORDER BY
+		  timestamp DESC
+		```
+	* In BigQuery, run this query and save this as a view:
+		```
+		#standardSQL
+		SELECT
+		  airport,
+		  last[safe_OFFSET(0)].*,
+		  CONCAT(CAST(last[safe_OFFSET(0)].latitude AS STRING), ",", CAST(last[safe_OFFSET(0)].longitude AS STRING)) AS location
+		FROM (
+		  SELECT
+		    airport,
+		    ARRAY_AGG(STRUCT(arr_delay,
+		        dep_delay,
+		        timestamp,
+		        latitude,
+		        longitude,
+		        num_flights)
+		    ORDER BY
+		      timestamp DESC
+		    LIMIT
+		      1) last
+		  FROM
+		    `flights.streaming_delays`
+		  GROUP BY
+		    airport )
+		```   
+	* Follow the steps in the chapter to connect to Data Studio and create a GeoMap.
+	* Stop the simulation program in CloudShell.
+	* From the GCP web console, stop the Dataflow streaming pipeline.
