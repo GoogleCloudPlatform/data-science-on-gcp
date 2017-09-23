@@ -1,13 +1,13 @@
 {
-  "creationTime": "1481227665960", 
-  "etag": "\"wWvNncJfeAdSHVaIWRpICxBS7AM/MTQ4MTIyNzY2NTk2MA\"", 
-  "id": "cloud-training-demos:flights.simevents", 
+  "creationTime": "1506113835994", 
+  "etag": "\"j_UfFBr-MZd44YkFyMjP55WG9dk/MTUwNjExMzgzNTk5NA\"", 
+  "id": "data-science-on-gcp-180606:flights.simevents", 
   "kind": "bigquery#table", 
-  "lastModifiedTime": "1481227665960", 
+  "lastModifiedTime": "1506113835994", 
   "location": "US", 
-  "numBytes": "6866082620", 
+  "numBytes": "9518644880", 
   "numLongTermBytes": "0", 
-  "numRows": "13161908", 
+  "numRows": "18492025", 
   "schema": {
     "fields": [
       {
@@ -192,10 +192,10 @@
       }
     ]
   }, 
-  "selfLink": "https://www.googleapis.com/bigquery/v2/projects/cloud-training-demos/datasets/flights/tables/simevents", 
+  "selfLink": "https://www.googleapis.com/bigquery/v2/projects/data-science-on-gcp-180606/datasets/flights/tables/simevents", 
   "tableReference": {
     "datasetId": "flights", 
-    "projectId": "cloud-training-demos", 
+    "projectId": "data-science-on-gcp-180606", 
     "tableId": "simevents"
   }, 
   "type": "TABLE"
