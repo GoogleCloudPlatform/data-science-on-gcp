@@ -9,7 +9,7 @@ spark = SparkSession \
     .appName("Logistic regression w/ Spark ML") \
     .getOrCreate()
 
-BUCKET='cloud-training-demos-ml'
+BUCKET='BUCKET_NAME'
 
 # read dataset
 traindays = spark.read \
@@ -43,7 +43,7 @@ flights.createOrReplaceTempView('flights')
 # logistic regression
 trainquery = """
 SELECT
-  *
+  DEP_DELAY, TAXI_OUT, ARR_DELAY, DISTANCE
 FROM flights f
 JOIN traindays t
 ON f.FL_DATE == t.FL_DATE

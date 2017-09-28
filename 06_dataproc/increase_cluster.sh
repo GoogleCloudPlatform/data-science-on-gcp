@@ -1,2 +1,2 @@
 gcloud dataproc clusters update ch6cluster\
-   --num-preemptible-workers=15 --num-workers=5
+   --num-preemptible-workers=3 --num-workers=4
