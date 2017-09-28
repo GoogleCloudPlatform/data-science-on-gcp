@@ -44,6 +44,30 @@ On your <em>local</em> machine (<b>i.e. not on GCP</b>):
 * In the new Chrome window, navigate to ```http://ch6cluster-m:8080/```, after making sure to allow
   outgoing http traffic from your local machine to the Dataproc cluster.
 
-* In the new browser window, copy-and-paste cells from <a href="quantization.ipynb">quantization.ipynb</a>
+* In the new browser window, copy-and-paste cells from <a href="quantization.ipynb">quantization.ipynb</a>.
+  Make sure to set the appropriate values in the cell containing the PROJECT, BUCKET, and REGION.
  
-### Spark SQL to 
+* [optional] make the changes suggested in the notebook to run on the full dataset.  Note that you might have to
+  reduce numbers to fit into your quota.
+  
+### Bayes Classification using Pig
+* SSH into the master node of the cluster by going to the GCP console
+* Clone the repository:
+    ```
+    git clone git clone https://github.com/GoogleCloudPlatform/data-science-on-gcp
+    ```
+* Change to the directory for this chapter:
+    ```
+    cd data-science-on-gcp/06_dataproc
+    ```
+* Change the bucket name in the Pig script:
+    ```
+    sed 's/cloud-training-demos-ml/YOUR_BUCKET_NAME/g' bayes_final.pig > /tmp/bayes.pig
+    ```
+* Submit Pig job to do Bayes classification (it will take a while to complete):
+    ```
+    gcloud dataproc jobs submit pig \
+         --cluster ch6cluster --file /tmp/bayes.pig
+    ```
+ * Delete the cluster either from the GCP web console or by typing in CloudShell, ```./delete_cluster.sh```
+ 
