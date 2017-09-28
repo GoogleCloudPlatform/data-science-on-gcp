@@ -1,11 +1,18 @@
 #!/bin/bash
 
-BUCKET=cloud-training-demos-ml
-ZONE=us-central1-a
+if [ "$#" -ne 2 ]; then
+    echo "Usage: ./create_cluster.sh  bucket-name  zone"
+    exit
+fi
+
+PROJECT=$DEVSHELL_PROJECT_ID
+BUCKET=$1
+ZONE=$2
 INSTALL=gs://$BUCKET/flights/dataproc/install_on_cluster.sh
 
 # upload install file
-gsutil cp install_on_cluster.sh $INSTALL
+sed "s/CHANGE_TO_USER_NAME/$USER/g" install_on_cluster.sh > /tmp/install_on_cluster.sh
+gsutil cp /tmp/install_on_cluster.sh $INSTALL
 
 # create cluster
 gcloud dataproc clusters create \
