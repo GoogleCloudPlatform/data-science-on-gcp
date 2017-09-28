@@ -1,4 +1,6 @@
-To load the CSV files created in Chapter 3 into BigQuery:
+# 5. Interactive data exploration
+
+### Load the CSV files created in Chapter 3 into BigQuery
 * Open CloudShell and navigate to 05_bqdatalab
 * Run the script to load data into BigQuery:
 	```

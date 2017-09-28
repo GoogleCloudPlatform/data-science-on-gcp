@@ -1,11 +1,13 @@
-To populate your bucket with the data you will need for the book:
+# 2. Ingesting data onto the Cloud
+
+### Populate your bucket with the data you will need for the book
 * Go to the 02_ingest folder of the repo
 * Change the BUCKET variable in upload.sh
 * Execute ./ingest_2015.sh
 * Execute monthlyupdate/ingest_flights.py specifying your bucket name, and with year of 2016 and month of 01.  Type monthlyupdate/ingest_flights.py --help to get usage help.
 This will initialize your bucket with the input files corresponding to 2015 and January 2016. These files are needed to carry out the steps that come later in this book.
 
-To try out the Cron service (this is optional):
+### [Optional] Scheduling monthly downloads
 * Go to the 02_ingest/monthlyupdate folder in the repo.
 * Initialize a default AppEngine application in your project by running ./init_appengine.sh.
 * Open the file app.yaml and change the CLOUD_STORAGE_BUCKET to reflect the name of your bucket.
