@@ -14,7 +14,7 @@
   ```
   ./populate_table.sh  <BUCKET-NAME>
   ```
-  Note that this script requires one parameters: your bucket name.
+  Note that this script requires you to pass in your bucket name as a command-line parameter.
   It will prompt you for the root password of your MySQL instance.
 * Compute the contingency table for a specific threshold by running the script 
   ```
