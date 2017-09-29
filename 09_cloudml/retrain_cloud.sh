@@ -13,7 +13,7 @@ DATA_DIR=gs://${BUCKET}/flights/chapter8/output
 JOBNAME=flights_$(date -u +%y%m%d_%H%M%S)
 
 
-TRAIN_FILE=$DATA_DIR/trainFlights-00007*
+TRAIN_FILE=$DATA_DIR/trainFlights-00001*
 TEST_FILE=$DATA_DIR/testFlights-00001*
 
 echo "Restarting training in $OUTPUT_DIR"
