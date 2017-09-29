@@ -2,7 +2,13 @@
 
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
+import argparse
 import json
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-p", "--project", required=True,
+                    help="Project that flights service is deployed in")
+args = parser.parse_args()
 
 credentials = GoogleCredentials.get_application_default()
 api = discovery.build('ml', 'v1', credentials=credentials,
@@ -27,7 +33,7 @@ request_data = {'instances':
   ]
 }
 
-PROJECT = 'cloud-training-demos'
+PROJECT = args.project
 parent = 'projects/%s/models/%s/versions/%s' % (PROJECT, 'flights', 'v1')
 response = api.projects().predict(body=request_data, name=parent).execute()
 print "response={0}".format(response)
