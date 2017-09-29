@@ -1,11 +1,19 @@
 #!/bin/bash
 
-gsutil -m rm -rf gs://cloud-training-demos-ml/flights/chapter8
+if [ "$#" -ne 2 ]; then
+    echo "Usage: ./create_datasets.sh  bucket-name max-num-workers"
+    exit
+fi
+
+BUCKET=$1
+MAX_NUM_WORKERS=$2
+
+gsutil -m rm -rf gs://$BUCKET/flights/chapter8
 
 cd chapter8
 
 mvn compile exec:java \
  -Dexec.mainClass=com.google.cloud.training.flights.CreateTrainingDataset \
- -Dexec.args="--fullDataset=true --maxNumWorkers=50 --autoscalingAlgorithm=THROUGHPUT_BASED"
+ -Dexec.args="--bucket=$BUCKET --fullDataset=true --maxNumWorkers=$MAX_NUM_WORKERS --autoscalingAlgorithm=THROUGHPUT_BASED"
 
 # --workerMachineType=n1-highmem-8"

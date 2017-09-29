@@ -66,17 +66,23 @@ public class CreateTrainingDataset {
 
     void setFullDataset(boolean b);
 
-    @Description("Path of the output directory")
-    @Default.String("gs://cloud-training-demos-ml/flights/chapter8/output/")
-    String getOutput();
+    @Description("Bucket name")
+    @Default.String("cloud-training-demos-ml")
+    String getBucket();
+    
+    void setBucket(String s);
+  }
+  
+  private static String getOutput(MyOptions opts) {
+    return "gs://BUCKET/flights/chapter8/output/".replace("BUCKET", opts.getBucket());
+  }
 
-    void setOutput(String s);
-
-    @Description("Path of trainday.csv")
-    @Default.String("gs://cloud-training-demos-ml/flights/trainday.csv")
-    String getTraindayCsvPath();
-
-    void setTraindayCsvPath(String s);
+  private static String getTraindayCsvPath(MyOptions opts) {
+    return "gs://BUCKET/flights/trainday.csv".replace("BUCKET", opts.getBucket());
+  }
+  
+  private static String getTempLocation(MyOptions opts) {
+    return "gs://BUCKET/flights/staging".replace("BUCKET", opts.getBucket());
   }
 
   final static Duration AVERAGING_INTERVAL = Duration.standardHours(1);
@@ -85,11 +91,11 @@ public class CreateTrainingDataset {
     MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
     // options.setStreaming(true);
     options.setRunner(DataflowRunner.class);
-    options.setTempLocation("gs://cloud-training-demos-ml/flights/staging");
+    options.setTempLocation(getTempLocation(options));
     Pipeline p = Pipeline.create(options);
 
     // read traindays.csv into memory for use as a side-input
-    PCollectionView<Map<String, String>> traindays = getTrainDays(p, options.getTraindayCsvPath());
+    PCollectionView<Map<String, String>> traindays = getTrainDays(p, getTraindayCsvPath(options));
 
     String query = "SELECT EVENT_DATA FROM flights.simevents WHERE ";
     if (!options.getFullDataset()) {
@@ -157,7 +163,7 @@ public class CreateTrainingDataset {
         c.output(kv.getKey() + "," + kv.getValue());
       }
     })) //
-        .apply("WriteDepDelays", TextIO.write().to(options.getOutput() + "delays").withSuffix(".csv").withoutSharding());
+        .apply("WriteDepDelays", TextIO.write().to(getOutput(options) + "delays").withSuffix(".csv").withoutSharding());
   }
 
   private static PCollection<Flight> readFlights(Pipeline p, String query) {
@@ -200,7 +206,7 @@ public class CreateTrainingDataset {
 
     // lines = MakeUnique.makeUnique(name, lines);
 
-    lines.apply(name + "Write", TextIO.write().to(options.getOutput() + name + "Flights").withSuffix(".csv"));
+    lines.apply(name + "Write", TextIO.write().to(getOutput(options) + name + "Flights").withSuffix(".csv"));
   }
 
   static PCollection<Flight> addDelayInformation(PCollection<Flight> hourlyFlights, //
