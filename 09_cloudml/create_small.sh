@@ -1,7 +1,14 @@
 #!/bin/bash
-#rm -rf ~/data/flights
+
+if [ "$#" -ne 1 ]; then
+    echo "Usage: ./create_small.sh  bucket-name"
+    exit
+fi
+
+BUCKET=$1
+
+rm -rf ~/data/flights
 mkdir -p ~/data/flights
-BUCKET=cloud-training-demos-ml
 
 for STEP in train test; do
   gsutil cp gs://${BUCKET}/flights/chapter8/output/${STEP}Flights-00001*.csv full.csv

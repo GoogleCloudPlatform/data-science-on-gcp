@@ -1,9 +1,15 @@
 #!/bin/bash
 
-BUCKET="cloud-training-demos-ml"
+if [ "$#" -ne 2 ]; then
+    echo "Usage: ./deploy_model.sh bucket-name bucket-region"
+    exit
+fi
+
+BUCKET=$1
+REGION=$2
+
 MODEL_NAME="flights"
 MODEL_VERSION="v1"
-REGION="us-central1"
 
 # result of training
 MODEL_LOCATION=$(gsutil ls gs://${BUCKET}/flights/chapter9/output/export/Servo/ | tail -1)

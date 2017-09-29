@@ -1,7 +1,13 @@
 #!/bin/bash
 
-BUCKET=cloud-training-demos-ml
-REGION=us-central1
+if [ "$#" -ne 2 ]; then
+    echo "Usage: ./train_cloud.sh bucket-name bucket-region"
+    exit
+fi
+
+BUCKET=$1
+REGION=$2
+
 OUTPUT_DIR=gs://${BUCKET}/flights/chapter9/output
 DATA_DIR=gs://${BUCKET}/flights/chapter8/output
 JOBNAME=flights_$(date -u +%y%m%d_%H%M%S)
