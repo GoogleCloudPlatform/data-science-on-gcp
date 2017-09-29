@@ -17,7 +17,7 @@ To develop Apache Beam pipelines in Eclipse:
 ### Run Dataflow from command-line to create augmented dataset for machine learning
 To run the Dataflow pipelines from CloudShell:
 * If you haven't already done so, git clone the repository.
-* Launch a Dataflow pipeline:
+* Launch a Dataflow pipeline (it will take 20-25 minutes):
     ```
     cd data-science-on-gcp/08_dataflow
     ./create_datasets.sh bucket-name  max-num-workers
@@ -26,5 +26,5 @@ To run the Dataflow pipelines from CloudShell:
 * Once pipeline is finished, go to https://console.cloud.google.com/dataflow to see that you now have new data.
 * Load the augmented data into BigQuery also:
     ```
-    ./to_bq.sh bucket-name
+    bash ./to_bq.sh bucket-name
     ```
