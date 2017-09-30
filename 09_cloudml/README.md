@@ -28,7 +28,7 @@ In CloudShell, or in your local development machine:
     ```
     ./train_cloud.sh bucket-name region-name
     ```
-  This will take 2-3 hours.
+  This will take about 1.5 hours.
 * Deploy the trained model to Cloud ML Engine:
     ```
     ./deploy_model.sh bucket-name region-name
@@ -36,10 +36,9 @@ In CloudShell, or in your local development machine:
   This will take 3-5 minutes.
 * Get the model to predict:
     ```
-    ./call_predict.py $(gcloud config get-value core/project)
+    ./call_predict.py --project=$(gcloud config get-value core/project)
     ```
-  The first time will take 1-2 minutes, but after that it should be quite fast.
 * Get the model to predict, but also provide a reason:
     ```
-    ./call_predict_reason.py $(gcloud config get-value core/project)
+    ./call_predict_reason.py --project=$(gcloud config get-value core/project)
     ```
