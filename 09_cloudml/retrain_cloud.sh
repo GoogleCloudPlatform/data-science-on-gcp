@@ -17,7 +17,7 @@ TRAIN_FILE=$DATA_DIR/trainFlights-00001*
 TEST_FILE=$DATA_DIR/testFlights-00001*
 
 echo "Restarting training in $OUTPUT_DIR"
-
+gsutil -m rm -rf $OUTPUT_DIR
 gcloud ml-engine jobs submit training $JOBNAME \
   --region=$REGION \
   --module-name=trainer.task \
