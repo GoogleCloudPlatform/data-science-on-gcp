@@ -17,7 +17,11 @@ import com.google.cloud.training.flights.AddRealtimePrediction.MyOptions;
 @SuppressWarnings("serial")
 public class BatchInputOutput extends InputOutput {
   private static final Logger LOG = LoggerFactory.getLogger(InputOutput.class);
-
+  
+  private static String getOutput(MyOptions opts) {
+    return "gs://BUCKET/flights/chapter10/output/".replace("BUCKET", opts.getBucket());
+  }
+  
   @Override
   public PCollection<Flight> readFlights(Pipeline p, MyOptions options) {
     String query = "SELECT EVENT_DATA FROM flights.simevents WHERE ";
@@ -47,7 +51,7 @@ public class BatchInputOutput extends InputOutput {
     try {
       PCollection<FlightPred> prds = addPredictionInBatches(outFlights);
       PCollection<String> lines = predToCsv(prds);
-      lines.apply("Write", TextIO.write().to(options.getOutput() + "flightPreds").withSuffix(".csv"));
+      lines.apply("Write", TextIO.write().to(getOutput(options) + "flightPreds").withSuffix(".csv"));
     } catch (Throwable t) {
       LOG.warn("Inference failed", t);
     }

@@ -47,17 +47,11 @@ public class AddRealtimePrediction {
   // private static final Logger LOG = LoggerFactory.getLogger(AddRealtimePrediction.class);
 
   public static interface MyOptions extends DataflowPipelineOptions {
-    @Description("Output directory")
-    @Default.String("gs://cloud-training-demos-ml/flights/chapter10/output/")
-    String getOutput();
-
-    void setOutput(String s);
-
-    @Description("Path to average departure delay file")
-    @Default.String("gs://cloud-training-demos-ml/flights/chapter8/output/delays.csv")
-    String getDelayPath();
-
-    void setDelayPath(String s);
+    @Description("Bucket name")
+    @Default.String("cloud-training-demos-ml")
+    String getBucket();
+    
+    void setBucket(String s);
     
     @Description("If real-time, it will read incoming flight info from Pub/Sub")
     @Default.Boolean(false)
@@ -69,6 +63,14 @@ public class AddRealtimePrediction {
     long getSpeedupFactor();
 
     void setSpeedupFactor(long d);
+  }
+  
+  private static String getDelayPath(MyOptions opts) {
+    return "gs://BUCKET/flights/chapter8/output/delays.csv".replace("BUCKET", opts.getBucket());
+  }
+  
+  private static String getTempLocation(MyOptions opts) {
+    return "gs://BUCKET/flights/staging".replace("BUCKET", opts.getBucket());
   }
 
   static PCollectionView<Map<String, Double>> readAverageDepartureDelay(Pipeline p, String path) {
@@ -90,7 +92,7 @@ public class AddRealtimePrediction {
       options.setStreaming(true);
     }    
     options.setRunner(DataflowRunner.class);
-    options.setTempLocation("gs://cloud-training-demos-ml/flights/staging");
+    options.setTempLocation(getTempLocation(options));
     Pipeline p = Pipeline.create(options);
 
     // in real-time, we read from PubSub and write to BigQuery
@@ -110,7 +112,7 @@ public class AddRealtimePrediction {
     
     PCollection<Flight> allFlights = io.readFlights(p, options);
 
-    PCollectionView<Map<String, Double>> avgDepDelay = readAverageDepartureDelay(p, options.getDelayPath());
+    PCollectionView<Map<String, Double>> avgDepDelay = readAverageDepartureDelay(p, getDelayPath(options));
 
     PCollection<Flight> hourlyFlights = allFlights.apply(Window.<Flight> into(SlidingWindows//
         .of(averagingInterval)//

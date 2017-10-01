@@ -54,25 +54,31 @@ public class EvaluateModel {
 
     void setFullDataset(boolean b);
     
-    @Description("Path to average departure delay file")
-    @Default.String("gs://cloud-training-demos-ml/flights/chapter8/output/delays.csv")
-    String getDelayPath();
-
-    void setDelayPath(String s);
+    @Description("Bucket name")
+    @Default.String("cloud-training-demos-ml")
+    String getBucket();
     
-    @Description("Path of the output directory")
-    @Default.String("gs://cloud-training-demos-ml/flights/chapter10/eval/")
-    String getOutput();
-
-    void setOutput(String s);
+    void setBucket(String s);
+  }
+  
+  private static String getDelayPath(MyOptions opts) {
+    return "gs://BUCKET/flights/chapter8/output/delays.csv".replace("BUCKET", opts.getBucket());
   }
 
+  private static String getOutput(MyOptions opts) {
+    return "gs://BUCKET/flights/chapter10/eval/".replace("BUCKET", opts.getBucket());
+  }
+
+  private static String getTempLocation(MyOptions opts) {
+    return "gs://BUCKET/flights/staging".replace("BUCKET", opts.getBucket());
+  }
+  
   public static void main(String[] args) {
     MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
     if (options.getFullDataset()) {
       options.setRunner(DataflowRunner.class);
     }
-    options.setTempLocation("gs://cloud-training-demos-ml/flights/staging");
+    options.setTempLocation(getTempLocation(options));
 
     Pipeline p = Pipeline.create(options);
 
@@ -85,7 +91,7 @@ public class EvaluateModel {
 
     PCollection<Flight> allFlights = CreateTrainingDataset.readFlights(p, query);
 
-    PCollectionView<Map<String, Double>> avgDepDelay = AddRealtimePrediction.readAverageDepartureDelay(p, options.getDelayPath());
+    PCollectionView<Map<String, Double>> avgDepDelay = AddRealtimePrediction.readAverageDepartureDelay(p, getDelayPath(options));
 
     PCollection<Flight> hourlyFlights = CreateTrainingDataset.applyTimeWindow(allFlights);
 
@@ -117,7 +123,7 @@ public class EvaluateModel {
         c.output(toEvalCsv(fp));
       }
     })) //
-    .apply("Write", TextIO.write().to(options.getOutput() + "evalFlights").withSuffix(".csv"));
+    .apply("Write", TextIO.write().to(getOutput(options) + "evalFlights").withSuffix(".csv"));
     
     PipelineResult result = p.run();
     if (!options.getFullDataset()) {
