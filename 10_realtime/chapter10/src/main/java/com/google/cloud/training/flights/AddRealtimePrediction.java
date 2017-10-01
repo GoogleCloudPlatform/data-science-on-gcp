@@ -63,6 +63,11 @@ public class AddRealtimePrediction {
     long getSpeedupFactor();
 
     void setSpeedupFactor(long d);
+    
+    @Description("Where should we store the output (if realtime) -- bigquery or bigtable")
+    @Default.Boolean(false)
+    boolean isBigtable();
+    void setBigtable(boolean r);
   }
   
   private static String getDelayPath(MyOptions opts) {
@@ -100,8 +105,8 @@ public class AddRealtimePrediction {
     Duration averagingInterval = CreateTrainingDataset.AVERAGING_INTERVAL;
     Duration averagingFrequency = CreateTrainingDataset.AVERAGING_FREQUENCY;
     if (options.isRealtime()) {
-      // io = new PubSubBigQuery();
-      io = new PubSubBigtable();
+      io = options.isBigtable()? new PubSubBigtable() : new PubSubBigQuery();
+      
       // If we need to average over 60 minutes and speedup is 30x,
       // then we need to average over 2 minutes of sped-up stream
       averagingInterval = averagingInterval.dividedBy(options.getSpeedupFactor());
