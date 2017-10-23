@@ -1,6 +1,11 @@
 # 2. Ingesting data onto the Cloud
 
 ### Populate your bucket with the data you will need for the book
+The simplest way to get the files you need is to copy it from my bucket:
+* Go to the 02_ingest folder of the repo
+* Run the program ./ingest_from_crsbucket.sh and specify your bucket name.
+
+Alternately, you can ingest from the original source of the data and carry out the cleanup steps as described in the text:
 * Go to the 02_ingest folder of the repo
 * Change the BUCKET variable in upload.sh
 * Execute ./ingest_2015.sh
