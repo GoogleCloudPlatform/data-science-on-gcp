@@ -15,7 +15,7 @@ Source code accompanying book:
 </table>
 
 ### Try out the code on Google Cloud Platform
-[![Open in Cloud Shell](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open/git_repo=https://github.com/GoogleCloudPlatform/data-science-on-gcp.git)
+[![Open in Cloud Shell](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open/?git_repo=https://github.com/GoogleCloudPlatform/data-science-on-gcp.git)
 
 ### Purchase book
 [Read on-line or download PDF of book](http://shop.oreilly.com/product/0636920057628.do)
