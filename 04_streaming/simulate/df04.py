@@ -76,19 +76,19 @@ def tz_correct(line, airport_timezones):
       yield ','.join(fields)
 
 if __name__ == '__main__':
-   pipeline = beam.Pipeline('DirectRunner')
+   with beam.Pipeline('DirectRunner') as pipeline:
 
-   airports = (pipeline 
-      | 'airports:read' >> beam.io.ReadFromText('airports.csv.gz')
-      | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
-      | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
-   )
+      airports = (pipeline
+         | 'airports:read' >> beam.io.ReadFromText('airports.csv.gz')
+         | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
+         | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
+      )
 
-   flights = (pipeline 
-      | 'flights:read' >> beam.io.ReadFromText('201501_part.csv')
-      | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
-   )
+      flights = (pipeline
+         | 'flights:read' >> beam.io.ReadFromText('201501_part.csv')
+         | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
+      )
 
-   flights | beam.io.textio.WriteToText('all_flights')
+      flights | beam.io.textio.WriteToText('all_flights')
 
-   pipeline.run()
+      pipeline.run()
