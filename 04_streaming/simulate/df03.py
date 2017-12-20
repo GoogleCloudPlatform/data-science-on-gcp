@@ -48,30 +48,30 @@ def tz_correct(line, airport_timezones):
       # convert all times to UTC
       dep_airport_id = fields[6]
       arr_airport_id = fields[10]
-      dep_timezone = airport_timezones[dep_airport_id][2] 
+      dep_timezone = airport_timezones[dep_airport_id][2]
       arr_timezone = airport_timezones[arr_airport_id][2]
-      
+
       for f in [13, 14, 17]: #crsdeptime, deptime, wheelsoff
          fields[f] = as_utc(fields[0], fields[f], dep_timezone)
       for f in [18, 20, 21]: #wheelson, crsarrtime, arrtime
          fields[f] = as_utc(fields[0], fields[f], arr_timezone)
-      
+
       yield ','.join(fields)
 
 if __name__ == '__main__':
-   pipeline = beam.Pipeline('DirectRunner')
+   with beam.Pipeline('DirectRunner') as pipeline:
 
-   airports = (pipeline 
-      | 'airports:read' >> beam.io.ReadFromText('airports.csv.gz')
-      | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
-      | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
-   )
+      airports = (pipeline
+         | 'airports:read' >> beam.io.ReadFromText('airports.csv.gz')
+         | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
+         | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
+      )
 
-   flights = (pipeline 
-      | 'flights:read' >> beam.io.ReadFromText('201501_part.csv')
-      | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
-   )
+      flights = (pipeline
+         | 'flights:read' >> beam.io.ReadFromText('201501_part.csv')
+         | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
+      )
 
-   flights | beam.io.textio.WriteToText('all_flights')
+      flights | beam.io.textio.WriteToText('all_flights')
 
-   pipeline.run()
+      pipeline.run()
