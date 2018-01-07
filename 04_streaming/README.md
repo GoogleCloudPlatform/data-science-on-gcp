@@ -61,13 +61,13 @@
 			  10
 	```
 ### Stream processing
-* Follow the OAuth2 woIn CloudShell, fkflow so that the python script can run code on your behalf:
+* In CloudShell, follow the OAuth2 workflow so that the python script can run code on your behalf:
 	```
 	gcloud auth application-default login
 	```
 * Run
 	```
-	python .simulate.py --startTime '2015-05-01 00:00:00 UTC' --endTime '2015-05-04 00:00:00 UTC' --speedFactor=30
+	python ./simulate.py --startTime '2015-05-01 00:00:00 UTC' --endTime '2015-05-04 00:00:00 UTC' --speedFactor=30 --project PROJECTID
     ```
 * In another CloudShell tab, run:
 	```
