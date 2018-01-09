@@ -79,7 +79,7 @@ if __name__ == '__main__':
    # set up BigQuery bqclient
    logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
    args = parser.parse_args()
-   bqclient = bq.Client()
+   bqclient = bq.Client(args.project)
    dataset =  bqclient.get_dataset( bqclient.dataset('flights') )  # throws exception on failure
  
    # jitter?
