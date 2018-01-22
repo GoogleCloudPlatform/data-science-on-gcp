@@ -1,6 +1,37 @@
 # 7. Machine Learning: Logistic regression on Spark
 
-### [Optional] Set up Datalab and Dataproc
+### Catch up from previous chapters if necessary
+If you didn't go through Chapters 2-6, the simplest way to catch up is to copy data from my bucket:
+
+#### Catch up from Chapters 2-4
+* Go to the 02_ingest folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
+* Go to the 04_streaming folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
+* Create a dataset named "flights" in BigQuery by typing:
+	```
+	bq mk flights
+	```
+* Run the script to load data into BigQuery:
+	```
+	bash load_into_bq.sh <BUCKET-NAME>
+	```
+ 
+#### Catch up from Chapter 5
+* In BigQuery, run this query and save the results as a table named trainday
+	```
+	  #standardsql
+	SELECT
+	  FL_DATE,
+	  IF(MOD(ABS(FARM_FINGERPRINT(CAST(FL_DATE AS STRING))), 100) < 70, 'True', 'False') AS is_train_day
+	FROM (
+	  SELECT
+	    DISTINCT(FL_DATE) AS FL_DATE
+	  FROM
+	    `flights.tzcorr`)
+	ORDER BY
+	  FL_DATE
+	```
+
+#### Catch up from Chapter 6
 * Use the instructions in the <a href="../06_dataproc/README.md">Chapter 6 README</a> to:
   * launch a minimal Cloud Dataproc cluster with initialization actions for Datalab (`./create_cluster.sh BUCKET ZONE`)
   * start a SSH tunnel (`./start_tunnel.sh`),
@@ -16,6 +47,7 @@
 * Browse to http://ch6cluster-m:8080/notebooks/datalab/data-science-on-gcp/07_sparkml/logistic_regression.ipynb
   and run the cells in the notebook (change the BUCKET appropriately).
 
+## This Chapter
 ### Logistic regression using Spark
 * If you haven't already done so, launch a minimal Dataproc cluster:
     ```
