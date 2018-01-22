@@ -1,7 +1,7 @@
 # Machine Learning Classifier using TensorFlow
 
 ### Catch up from previous chapters if necessary
-If you didn't go through Chapters 2-6, the simplest way to catch up is to copy data from my bucket:
+If you didn't go through Chapters 2-8, the simplest way to catch up is to copy data from my bucket:
 * Go to the 02_ingest folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
 * Go to the 04_streaming folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
 * Create a dataset named "flights" in BigQuery by typing:
