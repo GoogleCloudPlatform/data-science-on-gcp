@@ -1,5 +1,13 @@
 # 5. Interactive data exploration
 
+### Ingest data if necessary
+If you didn't go through Chapters 2 and 4, the simplest way to get the files you need is to copy it from my bucket:
+* Go to the 02_ingest folder of the repo
+* Run the program ./ingest_from_crsbucket.sh and specify your bucket name.
+* Go to the 04_streaming folder of the repo
+* Run the program ./ingest_from_crsbucket.sh and specify your bucket name.
+
+
 ### Load the CSV files created in Chapter 3 into BigQuery
 * Open CloudShell and navigate to 05_bqdatalab
 * Run the script to load data into BigQuery:
