@@ -1,5 +1,33 @@
 # 8. Time-windowed aggregate features
 
+### Catch up from previous chapters if necessary
+If you didn't go through Chapters 2-6, the simplest way to catch up is to copy data from my bucket:
+* Go to the 02_ingest folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
+* Go to the 04_streaming folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
+* Create a dataset named "flights" in BigQuery by typing:
+	```
+	bq mk flights
+	```
+* Run the script to load data into BigQuery:
+	```
+	bash load_into_bq.sh <BUCKET-NAME>
+	```
+* In BigQuery, run this query and save the results as a table named trainday
+	```
+	  #standardsql
+	SELECT
+	  FL_DATE,
+	  IF(MOD(ABS(FARM_FINGERPRINT(CAST(FL_DATE AS STRING))), 100) < 70, 'True', 'False') AS is_train_day
+	FROM (
+	  SELECT
+	    DISTINCT(FL_DATE) AS FL_DATE
+	  FROM
+	    `flights.tzcorr`)
+	ORDER BY
+	  FL_DATE
+	```
+
+
 ### [optional] Setup Dataflow Development environment
 To develop Apache Beam pipelines in Eclipse:
 * Install the latest version of the Java SDK (not just the runtime) from http://www.java.com/
