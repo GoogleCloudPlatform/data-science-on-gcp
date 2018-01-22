@@ -1,5 +1,11 @@
 # 3. Creating compelling dashboards
 
+### Ingest data if necessary
+If you didn't go through Chapter 2, the simplest way to get the files you need is to copy it from my bucket:
+* Go to the 02_ingest folder of the repo
+* Run the program ./ingest_from_crsbucket.sh and specify your bucket name.
+
+
 ### Loading data into Google Cloud SQL
 * In CloudShell, change to the 03_sqlstudio directory in your clone of the source code repository.
 * Run the script 
