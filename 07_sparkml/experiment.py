@@ -15,7 +15,7 @@ BUCKET='BUCKET_NAME'
 # read dataset
 traindays = spark.read \
     .option("header", "true") \
-    .csv('gs://cloud-training-demos-ml/flights/trainday.csv')
+    .csv('gs://{}/flights/trainday.csv'.format(BUCKET))
 traindays.createOrReplaceTempView('traindays')
 
 from pyspark.sql.types import StringType, FloatType, StructType, StructField
@@ -31,8 +31,8 @@ def get_structfield(colname):
 schema = StructType([get_structfield(colname) for colname in header.split(',')])
 
 
-#inputs = 'gs://cloud-training-demos-ml/flights/tzcorr/all_flights-00000-*' # 1/30th
-inputs = 'gs://cloud-training-demos-ml/flights/tzcorr/all_flights-*'  # FULL
+#inputs = 'gs://{}/flights/tzcorr/all_flights-00000-*'.format(BUCKET) # 1/30th
+inputs = 'gs://{}/flights/tzcorr/all_flights-*'.format(BUCKET)  # FULL
 flights = spark.read\
             .schema(schema)\
             .csv(inputs)
