@@ -7,6 +7,10 @@ If you didn't go through Chapter 2, the simplest way to get the files you need i
 
 
 ### Batch processing in DataFlow
+* Setup:
+        ```
+        ./install_packages.sh
+        ```
 * Parsing airports data:
 	```
 	cd 04_streaming/simulate
