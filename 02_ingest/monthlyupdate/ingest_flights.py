@@ -63,20 +63,20 @@ class UnexpectedFormat(Exception):
    def __init__(self, message):
       self.message = message
 
-def verify_ingest(outfile):
+def verify_ingest(csvfile):
    expected_header = 'FL_DATE,UNIQUE_CARRIER,AIRLINE_ID,CARRIER,FL_NUM,ORIGIN_AIRPORT_ID,ORIGIN_AIRPORT_SEQ_ID,ORIGIN_CITY_MARKET_ID,ORIGIN,DEST_AIRPORT_ID,DEST_AIRPORT_SEQ_ID,DEST_CITY_MARKET_ID,DEST,CRS_DEP_TIME,DEP_TIME,DEP_DELAY,TAXI_OUT,WHEELS_OFF,WHEELS_ON,TAXI_IN,CRS_ARR_TIME,ARR_TIME,ARR_DELAY,CANCELLED,CANCELLATION_CODE,DIVERTED,DISTANCE'
 
-   with open(outfile, 'r') as outfp:
-      firstline = outfp.readline().strip()
+   with open(csvfile, 'r') as csvfp:
+      firstline = csvfp.readline().strip()
       if (firstline != expected_header):
-         os.remove(outfile)
+         os.remove(csvfile)
          msg = 'Got header={}, but expected={}'.format(
                              firstline, expected_header)
          logging.error(msg)
          raise UnexpectedFormat(msg)
 
-      if next(outfp, None) == None:
-         os.remove(outfile)
+      if next(csvfp, None) == None:
+         os.remove(csvfile)
          msg = ('Received a file from BTS that has only the header and no content')
          raise DataUnavailable(msg)
 
