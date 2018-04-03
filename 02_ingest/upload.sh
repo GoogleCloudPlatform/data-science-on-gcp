@@ -1,4 +1,4 @@
 #!/bin/bash
-BUCKET=cloud-training-demos-ml
+BUCKET=mco-dsongcp
 gsutil -m cp *.csv gs://$BUCKET/flights/raw
 #gsutil -m acl ch -R -g google.com:R gs://$BUCKET/flights/raw
