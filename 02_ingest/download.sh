@@ -1,6 +1,7 @@
 #!/bin/bash
 
-echo ${YEAR:=2015}  # default if YEAR not set
+export YEAR=${YEAR:=2015}
+echo "Downloading YEAR=$YEAR..."
 
 for MONTH in `seq -w 1 12`; do
 
