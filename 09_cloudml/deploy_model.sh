@@ -1,5 +1,7 @@
 #!/bin/bash
 
+TF_VERSION="1.4"   # CHANGE as needed
+
 if [ "$#" -ne 2 ]; then
     echo "Usage: ./deploy_model.sh bucket-name bucket-region"
     exit
@@ -19,4 +21,4 @@ echo "Deleting and deploying $MODEL_NAME $MODEL_VERSION from $MODEL_LOCATION ...
 gcloud ml-engine versions delete ${MODEL_VERSION} --model ${MODEL_NAME}
 gcloud ml-engine models delete ${MODEL_NAME}
 gcloud ml-engine models create ${MODEL_NAME} --regions $REGION
-gcloud ml-engine versions create ${MODEL_VERSION} --model ${MODEL_NAME} --origin ${MODEL_LOCATION}
+gcloud ml-engine versions create ${MODEL_VERSION} --model ${MODEL_NAME} --origin ${MODEL_LOCATION} --runtime-version=${TF_VERSION}

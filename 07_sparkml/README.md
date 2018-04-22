@@ -31,6 +31,8 @@ If you didn't go through Chapters 2-6, the simplest way to catch up is to copy d
 	  FL_DATE
 	```
 
+* Export the table as gs://BUCKET/flights/trainday.csv
+
 #### [Optional] Catch up from Chapter 6
 * Use the instructions in the <a href="../06_dataproc/README.md">Chapter 6 README</a> to:
   * launch a minimal Cloud Dataproc cluster with initialization actions for Datalab (`./create_cluster.sh BUCKET ZONE`)
