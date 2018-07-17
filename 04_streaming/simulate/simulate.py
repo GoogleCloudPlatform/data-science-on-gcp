@@ -105,9 +105,9 @@ WHERE
 ORDER BY
   NOTIFY_TIME ASC
 """
-   rows = bqclient.query_rows(querystr.format(jitter,
-                                                   args.startTime,
-                                                   args.endTime))
+   rows = bqclient.query(querystr.format(jitter,
+                                         args.startTime,
+                                         args.endTime))
    
    # create one Pub/Sub notification topic for each type of event
    publisher = pubsub.PublisherClient()
