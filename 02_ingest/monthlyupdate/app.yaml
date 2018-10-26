@@ -1,6 +1,6 @@
 runtime: python
 env: flex
-entrypoint: gunicorn -b :$PORT ingestapp:app
+entrypoint: gunicorn -b :$PORT ingestapp:app --timeout 120
 service: flights
 manual_scaling:
   instances: 1
