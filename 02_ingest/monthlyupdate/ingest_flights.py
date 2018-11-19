@@ -21,9 +21,21 @@ import os.path
 import zipfile
 import datetime
 import tempfile
-from urllib2 import urlopen
 from google.cloud import storage
 from google.cloud.storage import Blob
+
+try:
+    # For Python 3.0 and later
+    def urlopen(url, data):
+        from urllib.request import urlopen as impl
+        return impl(url, data.encode('utf-8'))
+    def remove_quote(text):
+        return text.translate(str.maketrans('','', '"'))
+except ImportError:
+    # Fall back to Python 2's urllib2
+    from urllib2 import urlopen
+    def remove_quote(text):
+        return text.translate(None, '"')
 
 def download(YEAR, MONTH, destdir):
    '''
@@ -91,7 +103,8 @@ def remove_quotes_comma(csvfile, year, month):
    with open(csvfile, 'r') as infp:
      with open(outfile, 'w') as outfp:
         for line in infp:
-           outline = line.rstrip().rstrip(',').translate(None, '"')
+           outline = line.rstrip().rstrip(',')
+           outline = remove_quote(outline)
            outfp.write(outline)
            outfp.write('\n')
    logging.debug('Ingested {} ...'.format(outfile))
