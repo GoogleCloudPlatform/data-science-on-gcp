@@ -23,6 +23,11 @@ def ingest_flights(request):
    try:
       logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
       json = request.get_json()
+      
+      if escape(json['token']) != 'DI8TWPzTedNF0b3B8meFPxXSWw6m3bKG':
+         logging.info('Ignoring request without valid token')
+         return
+
       year = escape(json['year']) if 'year' in json else None
       month = escape(json['month']) if 'month' in json else None
       bucket = escape(json['bucket'])  # required
