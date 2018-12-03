@@ -16,7 +16,7 @@ mkdir working
 cd working
 gsutil cp $IN_NB_GCS  input.ipynb
 gsutil cp $PARAMS_GCS params.yaml
-papermill input.ipynb output.ipynb -f params.yaml
+papermill input.ipynb output.ipynb -f params.yaml --log-output
 gsutil cp output.ipynb $OUT_NB_GCS
 cd ..
 rm -rf working
