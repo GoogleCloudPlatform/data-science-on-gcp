@@ -25,13 +25,13 @@ from google.cloud import storage
 from google.cloud.storage import Blob
 
 try:
+    from urllib.request import urlopen as impl
     # For Python 3.0 and later
     def urlopen(url, data):
-        from urllib.request import urlopen as impl
         return impl(url, data.encode('utf-8'))
     def remove_quote(text):
         return text.translate(str.maketrans('','', '"'))
-except ImportError:
+except ImportError as error:
     # Fall back to Python 2's urllib2
     from urllib2 import urlopen
     def remove_quote(text):
