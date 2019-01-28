@@ -9,6 +9,7 @@ If you didn't go through Chapter 2, the simplest way to get the files you need i
 ### Batch processing in DataFlow
 * Setup:
         ```
+	cd simulate
         ./install_packages.sh
         ```
 * Parsing airports data:
