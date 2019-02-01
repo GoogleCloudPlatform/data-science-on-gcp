@@ -50,7 +50,7 @@ On your <em>local</em> machine (<b>i.e. not on GCP</b>):
 * Install the <a href="https://cloud.google.com/sdk/downloads">gcloud SDK</a> if you haven't already done so:
 * Create a SSH tunnel to your Dataproc cluster (change the zone appr
     ```
-    gcloud compute ssh  --zone=us-central1a  \
+    gcloud compute ssh  --zone=us-central1-a  \
           --ssh-flag="-D 1080" --ssh-flag="-N" --ssh-flag="-n" \
           ch6cluster-m
     ```
