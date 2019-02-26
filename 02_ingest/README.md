@@ -8,7 +8,7 @@ The simplest way to get the files you need is to copy it from my bucket:
 Alternately, you can ingest from the original source of the data and carry out the cleanup steps as described in the text:
 * Go to the 02_ingest folder of the repo
 * Change the BUCKET variable in upload.sh
-* Execute ./ingest_2015.sh
+* Execute ./ingest.sh
 * Execute monthlyupdate/ingest_flights.py specifying your bucket name, and with year of 2016 and month of 01.  Type monthlyupdate/ingest_flights.py --help to get usage help.
 This will initialize your bucket with the input files corresponding to 2015 and January 2016. These files are needed to carry out the steps that come later in this book.
 
