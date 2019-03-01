@@ -44,6 +44,7 @@ In CloudShell:
    ```
     ./create_cluster.sh <BUCKET-NAME>  <COMPUTE-ZONE>
     ```
+*Note:* Make sure that the compute zone is in the same region as the bucket, otherwise you will incur network egress charges.
 
 ### Quantization using Spark SQL
 On your <em>local</em> machine (<b>i.e. not on GCP</b>):
@@ -96,5 +97,7 @@ On your <em>local</em> machine (<b>i.e. not on GCP</b>):
     gcloud dataproc jobs submit pig \
          --cluster ch6cluster --file /tmp/bayes.pig
     ```
- * Delete the cluster either from the GCP web console or by typing in CloudShell, ```./delete_cluster.sh```
+
+### Delete the cluster
+* Delete the cluster either from the GCP web console or by typing in CloudShell, ```./delete_cluster.sh```
  
