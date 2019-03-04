@@ -8,7 +8,7 @@ If you didn't go through Chapters 2-6, the simplest way to catch up is to copy d
 	```
 	bq mk flights
 	```
-* Run the script to load data into BigQuery:
+* Go to the 05_bqdatalab folder of the repo, run the script to load data into BigQuery:
 	```
 	bash load_into_bq.sh <BUCKET-NAME>
 	```
