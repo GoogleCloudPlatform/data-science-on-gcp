@@ -10,7 +10,7 @@ If you didn't go through Chapters 2-5, the simplest way to catch up is to copy d
 	```
 	bq mk flights
 	```
-* Run the script to load data into BigQuery:
+* Go to the 05_bqdatalab folder of the repo, run the script to load data into BigQuery:
 	```
 	bash load_into_bq.sh <BUCKET-NAME>
 	```
@@ -44,13 +44,14 @@ In CloudShell:
    ```
     ./create_cluster.sh <BUCKET-NAME>  <COMPUTE-ZONE>
     ```
+*Note:* Make sure that the compute zone is in the same region as the bucket, otherwise you will incur network egress charges.
 
 ### Quantization using Spark SQL
 On your <em>local</em> machine (<b>i.e. not on GCP</b>):
 * Install the <a href="https://cloud.google.com/sdk/downloads">gcloud SDK</a> if you haven't already done so:
 * Create a SSH tunnel to your Dataproc cluster (change the zone appr
     ```
-    gcloud compute ssh  --zone=us-central1a  \
+    gcloud compute ssh  --zone=us-central1-a  \
           --ssh-flag="-D 1080" --ssh-flag="-N" --ssh-flag="-n" \
           ch6cluster-m
     ```
@@ -96,5 +97,7 @@ On your <em>local</em> machine (<b>i.e. not on GCP</b>):
     gcloud dataproc jobs submit pig \
          --cluster ch6cluster --file /tmp/bayes.pig
     ```
- * Delete the cluster either from the GCP web console or by typing in CloudShell, ```./delete_cluster.sh```
+
+### Delete the cluster
+* Delete the cluster either from the GCP web console or by typing in CloudShell, ```./delete_cluster.sh```
  

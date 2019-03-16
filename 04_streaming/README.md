@@ -9,6 +9,7 @@ If you didn't go through Chapter 2, the simplest way to get the files you need i
 ### Batch processing in DataFlow
 * Setup:
         ```
+	cd simulate;
         ./install_packages.sh
         ```
 * Parsing airports data:
@@ -81,7 +82,7 @@ If you didn't go through Chapter 2, the simplest way to get the files you need i
     ```
 * In another CloudShell tab, run:
 	```
-	cd 04_streaming/process
+	cd 04_streaming/realtime
 	./run_on_cloud.sh <BUCKET-NAME>
 	```
 * Go to the GCP web console in the Dataflow section and monitor the job.

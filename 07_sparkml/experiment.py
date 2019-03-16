@@ -49,7 +49,7 @@ traindays.createOrReplaceTempView('traindays')
 # logistic regression
 trainquery = """
 SELECT
-  DEP_DELAY, TAXI_OUT, ARR_DELAY, DISTANCE
+  DEP_DELAY, TAXI_OUT, ARR_DELAY, DISTANCE, DEP_TIME, DEP_AIRPORT_TZOFFSET
 FROM flights f
 JOIN traindays t
 ON f.FL_DATE == t.FL_DATE
