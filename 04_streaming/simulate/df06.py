@@ -41,7 +41,7 @@ def as_utc(date, hhmm, tzone):
       else:
          return '',0 # empty string corresponds to canceled flights
    except ValueError as e:
-      print '{} {} {}'.format(date, hhmm, tzone)
+      print ('{} {} {}'.format(date, hhmm, tzone))
       raise e
 
 def add_24h_if_before(arrtime, deptime):
@@ -166,6 +166,6 @@ if __name__ == '__main__':
    parser.add_argument('-d','--dataset', help='BigQuery dataset', default='flights')
    args = vars(parser.parse_args())
 
-   print "Correcting timestamps and writing to BigQuery dataset {}".format(args['dataset'])
+   print ("Correcting timestamps and writing to BigQuery dataset {}".format(args['dataset']))
   
    run(project=args['project'], bucket=args['bucket'], dataset=args['dataset'])
