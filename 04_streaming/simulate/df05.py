@@ -41,7 +41,7 @@ def as_utc(date, hhmm, tzone):
       else:
          return '',0 # empty string corresponds to canceled flights
    except ValueError as e:
-      print '{} {} {}'.format(date, hhmm, tzone)
+      print ('{} {} {}'.format(date, hhmm, tzone))
       raise e
 
 def add_24h_if_before(arrtime, deptime):
