@@ -98,7 +98,7 @@ class CustomCommands(setuptools.Command):
 # so this dependency will not trigger anything to be installed unless a version
 # restriction is specified.
 REQUIRED_PACKAGES = [
-    'timezonefinder',
+    'timezonefinder==3.0.0',
     'pytz'
     ]
 
