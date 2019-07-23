@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2016 Google Inc.
 #
@@ -37,6 +37,6 @@ if __name__ == '__main__':
          | beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
       )
 
-      airports | beam.Map(lambda (airport, data): '{},{}'.format(airport, ','.join(data)) )| beam.io.textio.WriteToText('airports_with_tz')
+      airports | beam.Map(lambda f: '{},{}'.format(f[0], ','.join(f[1])) )| beam.io.textio.WriteToText('airports_with_tz')
 
       pipeline.run()
