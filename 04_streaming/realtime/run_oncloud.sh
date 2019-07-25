@@ -5,7 +5,7 @@ if [ "$#" -ne 1 ]; then
     exit
 fi
 
-PROJECT=$DEVSHELL_PROJECT_ID
+PROJECT=$(gcloud config get-value project)
 BUCKET=$1
 
 cd chapter4
@@ -16,6 +16,7 @@ mvn compile exec:java \
  -Dexec.mainClass=com.google.cloud.training.flights.AverageDelayPipeline \
       -Dexec.args="--project=$PROJECT \
       --stagingLocation=gs://$BUCKET/staging/ \
+      --gcpTempLocation=gs://$BUCKET/staging/tmp \
       --averagingInterval=60 \
       --speedupFactor=30 \
       --runner=DataflowRunner"
