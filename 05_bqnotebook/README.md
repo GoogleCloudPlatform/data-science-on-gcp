@@ -11,7 +11,7 @@ If you didn't go through Chapters 2-4, the simplest way to catch up is to copy d
 
 
 ### Load the CSV files created in Chapter 3 into BigQuery
-* Open CloudShell and navigate to 05_bqdatalab
+* Open CloudShell and navigate to 05_bqnotebook
 * Run the script to load data into BigQuery:
 	```
 	bash load_into_bq.sh <BUCKET-NAME>
@@ -36,10 +36,10 @@ If you didn't go through Chapters 2-4, the simplest way to catch up is to copy d
 	  dep_delay DESC
 	
 	``` 
-* In BigQuery, run this query and save the results as a table named trainday
+* In BigQuery, run this query to save the results as a table named trainday
 	```
-	  #standardsql
-	SELECT
+	CREATE OR REPLACE TABLE flights.trainday AS
+        SELECT
 	  FL_DATE,
 	  IF(MOD(ABS(FARM_FINGERPRINT(CAST(FL_DATE AS STRING))), 100) < 70, 'True', 'False') AS is_train_day
 	FROM (
