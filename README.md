@@ -17,6 +17,11 @@ Source code accompanying book:
 ### Try out the code on Google Cloud Platform
 [![Open in Cloud Shell](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open/?git_repo=https://github.com/GoogleCloudPlatform/data-science-on-gcp.git)
 
+### Try out the code on Qwiklabs
+
+- [Data Science on the Google Cloud Platform Quest](https://google.qwiklabs.com/quests/43)
+- [Data Science on Google Cloud Platform: Machine Learning Quest](https://google.qwiklabs.com/quests/50)
+
 ### Purchase book
 [Read on-line or download PDF of book](http://shop.oreilly.com/product/0636920057628.do)
 
