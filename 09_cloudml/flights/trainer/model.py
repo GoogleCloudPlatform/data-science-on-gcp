@@ -1,7 +1,5 @@
-from tensorflow.contrib.learn.python.learn.utils import saved_model_export_utils
-import tensorflow.contrib.learn as tflearn
-import tensorflow.contrib.layers as tflayers
-import tensorflow.contrib.metrics as tfmetrics
+import logging
+
 import tensorflow as tf
 import numpy as np
 
@@ -11,196 +9,56 @@ LABEL_COLUMN = 'ontime'
 DEFAULTS     = [[0.0],[0.0],[0.0],[0.0],[0.0],[0.0],\
                 ['na'],[0.0],[0.0],[0.0],[0.0],['na'],['na']]
 
-def read_dataset(filename, mode=tf.contrib.learn.ModeKeys.EVAL, batch_size=512, num_training_epochs=10):
+BUCKET = None
+OUTPUT_DIR = None
+NBUCKETS = None
+NUM_EXAMPLES = None
+TRAIN_BATCH_SIZE = None
+TRAIN_DATA_PATTERN = None
+EVAL_DATA_PATTERN = None
 
-  # the actual input function passed to TensorFlow
-  def _input_fn():
-    num_epochs = num_training_epochs if mode == tf.contrib.learn.ModeKeys.TRAIN else 1
+def setup(args):
+    global BUCKET, OUTPUT_DIR, NBUCKETS, NUM_EXAMPLES
+    global TRAIN_BATCH_SIZE, TRAIN_DATA_PATTERN, EVAL_DATA_PATTERN
+    BUCKET = args['bucket']
+    OUTPUT_DIR = args['output_dir']
+    NBUCKETS = int(args['nbuckets'])
+    NUM_EXAMPLES = int(args['num_examples'])
+    TRAIN_BATCH_SIZE = int(args['train_batch_size'])
 
-    # could be a path to one file or a file pattern.
-    input_file_names = tf.train.match_filenames_once(filename)
-    filename_queue = tf.train.string_input_producer(
-        input_file_names, num_epochs=num_epochs, shuffle=True)
- 
-    # read CSV
-    reader = tf.TextLineReader()
-    _, value = reader.read_up_to(filename_queue, num_records=batch_size)
-    value_column = tf.expand_dims(value, -1)
-    columns = tf.decode_csv(value_column, record_defaults=DEFAULTS)
-    features = dict(zip(CSV_COLUMNS, columns))
-    label = features.pop(LABEL_COLUMN)
-    return features, label
-  
-  return _input_fn
-
-def get_features_raw():
-    real = {
-      colname : tflayers.real_valued_column(colname) \
-          for colname in \
-            ('dep_delay,taxiout,distance,avg_dep_delay,avg_arr_delay' + 
-             ',dep_lat,dep_lon,arr_lat,arr_lon').split(',')
-    }
-    sparse = {
-      'carrier': tflayers.sparse_column_with_keys('carrier',
-                  keys='AS,VX,F9,UA,US,WN,HA,EV,MQ,DL,OO,B6,NK,AA'.split(',')),
-      'origin' : tflayers.sparse_column_with_hash_bucket('origin', hash_bucket_size=1000), # FIXME
-      'dest'   : tflayers.sparse_column_with_hash_bucket('dest', hash_bucket_size=1000) #FIXME
-    }
-    return real, sparse
-
-def get_features_ch7():
-    """Using only the three inputs we originally used in Chapter 7"""
-    real = {
-      colname : tflayers.real_valued_column(colname) \
-          for colname in \
-            ('dep_delay,taxiout,distance').split(',')
-    }
-    sparse = {}
-    return real, sparse
-
-def get_features_ch8():
-    """Using the three inputs we originally used in Chapter 7, plus the time averages computed in Chapter 8"""
-    real = {
-      colname : tflayers.real_valued_column(colname) \
-          for colname in \
-            ('dep_delay,taxiout,distance,avg_dep_delay,avg_arr_delay').split(',')
-    }
-    sparse = {}
-    return real, sparse
-
-def get_features():
-    return get_features_raw()
-    #return get_features_ch7()
-    #return get_features_ch8()
-
-def parse_hidden_units(s):
-    return [int(item) for item in s.split(',')]
-
-def wide_and_deep_model(output_dir, nbuckets=5, hidden_units='64,32', learning_rate=0.01):
-    real, sparse = get_features()
-
-    # the lat/lon columns can be discretized to yield "air traffic corridors"
-    latbuckets = np.linspace(20.0, 50.0, nbuckets).tolist()  # USA
-    lonbuckets = np.linspace(-120.0, -70.0, nbuckets).tolist() # USA
-    disc = {}
-    disc.update({
-       'd_{}'.format(key) : tflayers.bucketized_column(real[key], latbuckets) \
-          for key in ['dep_lat', 'arr_lat']
-    })
-    disc.update({
-       'd_{}'.format(key) : tflayers.bucketized_column(real[key], lonbuckets) \
-          for key in ['dep_lon', 'arr_lon']
-    })
-
-    # cross columns that make sense in combination
-    sparse['dep_loc'] = tflayers.crossed_column([disc['d_dep_lat'], disc['d_dep_lon']],\
-                                                nbuckets*nbuckets)
-    sparse['arr_loc'] = tflayers.crossed_column([disc['d_arr_lat'], disc['d_arr_lon']],\
-                                                nbuckets*nbuckets)
-    sparse['dep_arr'] = tflayers.crossed_column([sparse['dep_loc'], sparse['arr_loc']],\
-                                                nbuckets ** 4)
-    sparse['ori_dest'] = tflayers.crossed_column([sparse['origin'], sparse['dest']], \
-                                                hash_bucket_size=1000)
+    # set up training and evaluation data patterns
+    DATA_BUCKET = "gs://{}/flights/chapter8/output/".format(BUCKET)
+    TRAIN_DATA_PATTERN = DATA_BUCKET + "train*"
+    EVAL_DATA_PATTERN = DATA_BUCKET + "test*"
+    logging.info('Training based on data in {}'.format(TRAIN_DATA_PATTERN))
     
-    # create embeddings of all the sparse columns
-    embed = {
-       colname : create_embed(col) \
-          for colname, col in sparse.items()
-    }
-    real.update(embed)
- 
-    estimator = \
-        tflearn.DNNLinearCombinedClassifier(model_dir=output_dir,
-                                           linear_feature_columns=sparse.values(),
-                                           dnn_feature_columns=real.values(),
-                                           dnn_hidden_units=parse_hidden_units(hidden_units))
-                                           #linear_optimizer=tf.train.FtrlOptimizer(learning_rate=learning_rate),
-                                           #dnn_optimizer=tf.train.AdagradOptimizer(learning_rate=learning_rate*0.25))
-    estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
-    return estimator
-   
-def linear_model(output_dir):
-    real, sparse = get_features()
-    all = {}
-    all.update(real)
-    all.update(sparse)
-    estimator = tflearn.LinearClassifier(model_dir=output_dir, feature_columns=all.values())
-    estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
-    return estimator
+def features_and_labels(features):
+  label = features.pop('ontime') # this is what we will train for
+  return features, label
 
-def create_embed(sparse_col):
-    dim = 10 # default
-    if hasattr(sparse_col, 'bucket_size'):
-       nbins = sparse_col.bucket_size
-       if nbins is not None:
-          dim = 1 + int(round(np.log2(nbins)))
-    return tflayers.embedding_column(sparse_col, dimension=dim)
+def read_dataset(pattern, batch_size, mode=tf.estimator.ModeKeys.TRAIN, truncate=None):
+  dataset = tf.data.experimental.make_csv_dataset(pattern, batch_size, CSV_COLUMNS, DEFAULTS)
+  dataset = dataset.map(features_and_labels)
+  if mode == tf.estimator.ModeKeys.TRAIN:
+    dataset = dataset.repeat()
+    dataset = dataset.shuffle(batch_size*10)
+  dataset = dataset.prefetch(1)
+  if truncate is not None:
+    dataset = dataset.take(truncate)
+  return dataset
 
-def dnn_model(output_dir):
-    real, sparse = get_features()
-    all = {}
-    all.update(real)
-
-    # create embeddings of the sparse columns
-    embed = {
-       colname : create_embed(col) \
-          for colname, col in sparse.items()
-    }
-    all.update(embed)
-
-    estimator = tflearn.DNNClassifier(model_dir=output_dir,
-                                      feature_columns=all.values(),
-                                      hidden_units=[64, 16, 4])
-    estimator.params["head"]._thresholds = [0.7]  # FIXME: hack
-    return estimator
-
-def get_model(output_dir, nbuckets, hidden_units, learning_rate):
-    #return linear_model(output_dir)
-    #return dnn_model(output_dir)
-    return wide_and_deep_model(output_dir, nbuckets, hidden_units, learning_rate)
-
-
-def serving_input_fn():
-    feature_placeholders = {
-      key : tf.placeholder(tf.float32, [None]) \
-        for key in ('dep_delay,taxiout,distance,avg_dep_delay,avg_arr_delay' +
-             ',dep_lat,dep_lon,arr_lat,arr_lon').split(',')
-    }
-    feature_placeholders.update( {
-      key : tf.placeholder(tf.string, [None]) \
-        for key in 'carrier,origin,dest'.split(',')
-    } )
-
-    features = {
-      key: tf.expand_dims(tensor, -1)
-      for key, tensor in feature_placeholders.items()
-    }
-    return tflearn.utils.input_fn_utils.InputFnOps(
-      features,
-      None,
-      feature_placeholders)
-
-def my_rmse(predictions, labels, **args):
-  prob_ontime = predictions[:,1]
-  return tfmetrics.streaming_root_mean_squared_error(prob_ontime, labels, **args)
-
-def make_experiment_fn(traindata, evaldata, num_training_epochs,
-                       batch_size, nbuckets, hidden_units, learning_rate, **args):
-  def _experiment_fn(output_dir):
-    return tflearn.Experiment(
-        get_model(output_dir, nbuckets, hidden_units, learning_rate),
-        train_input_fn=read_dataset(traindata, mode=tf.contrib.learn.ModeKeys.TRAIN, num_training_epochs=num_training_epochs, batch_size=batch_size),
-        eval_input_fn=read_dataset(evaldata),
-        export_strategies=[saved_model_export_utils.make_export_strategy(
-            serving_input_fn,
-            default_output_alternative_key=None,
-            exports_to_keep=1
-        )],
-        eval_metrics = {
-	    'rmse' : tflearn.MetricSpec(metric_fn=my_rmse, prediction_key='probabilities'),
-            'training/hptuning/metric' : tflearn.MetricSpec(metric_fn=my_rmse, prediction_key='probabilities')
-        },
-        min_eval_frequency = 100,
-        **args
-    )
-  return _experiment_fn
+def read_lines():
+    if TRAIN_BATCH_SIZE > 5:
+        print('This is meant for trying out the input pipeline. Please set train_batch_size to be < 5')
+        return
+    
+    logging.info("Checking input pipeline batch_size={}".format(TRAIN_BATCH_SIZE))
+    one_item = read_dataset(TRAIN_DATA_PATTERN, TRAIN_BATCH_SIZE, truncate=1)
+    print(list(one_item)) # should print one batch of items
+    
+def find_average_label():
+    logging.info("Finding average label in num_examples={}".format(NUM_EXAMPLES))
+    features_and_labels = read_dataset(TRAIN_DATA_PATTERN, 1, truncate=NUM_EXAMPLES)
+    labels = features_and_labels.map(lambda x, y : y)
+    count, sum = labels.reduce((0.0,0.0), lambda state, y: (state[0]+1.0, state[1]+y))
+    print(sum/count) # average of the whole lot
