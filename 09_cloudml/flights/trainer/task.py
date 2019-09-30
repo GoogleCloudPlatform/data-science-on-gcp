@@ -62,7 +62,7 @@ if __name__ == '__main__':
   )
   parser.add_argument(
       '--func',
-      help='read_lines find_average_label OR train_and_evaluate (default)',
+      help='read_lines find_average_label linear OR wide_deep (default)',
       default='train_and_evaluate'
   )
 
@@ -98,6 +98,6 @@ if __name__ == '__main__':
     model.read_lines()
   elif func_to_call == 'find_average_label':
     model.find_average_label()
-  else:
-    model.train_and_evaluate()
-                           
+  else:  # linear, wide_deep
+    model.train_and_evaluate(func_to_call)
+                          
