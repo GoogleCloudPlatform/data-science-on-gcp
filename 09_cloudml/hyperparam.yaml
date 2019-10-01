@@ -1,7 +1,9 @@
 trainingInput:
-  scaleTier: BASIC_CPU
+  scaleTier: CUSTOM
+  masterType: n1-highmem-2
   hyperparameters:
     goal: MINIMIZE
+    hyperparameterMetricTag: rmse
     maxTrials: 15
     maxParallelTrials: 3
     params:
