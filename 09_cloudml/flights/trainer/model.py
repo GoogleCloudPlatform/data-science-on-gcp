@@ -1,7 +1,7 @@
 import logging
 import os
 import time
-    
+import hypertune
 import tensorflow as tf
 import numpy as np
 
@@ -98,6 +98,31 @@ def get_inputs_and_features():
           for colname in sparse.keys()
     })
     
+    latbuckets = np.linspace(20.0, 50.0, NBUCKETS).tolist()  # USA
+    lonbuckets = np.linspace(-120.0, -70.0, NBUCKETS).tolist() # USA
+    disc = {}
+    disc.update({
+       'd_{}'.format(key) : tf.feature_column.bucketized_column(real[key], latbuckets) 
+          for key in ['dep_lat', 'arr_lat']
+    })
+    disc.update({
+       'd_{}'.format(key) : tf.feature_column.bucketized_column(real[key], lonbuckets) 
+          for key in ['dep_lon', 'arr_lon']
+    })
+
+    # cross columns that make sense in combination
+    sparse['dep_loc'] = tf.feature_column.crossed_column([disc['d_dep_lat'], disc['d_dep_lon']], NBUCKETS*NBUCKETS)
+    sparse['arr_loc'] = tf.feature_column.crossed_column([disc['d_arr_lat'], disc['d_arr_lon']], NBUCKETS*NBUCKETS)
+    sparse['dep_arr'] = tf.feature_column.crossed_column([sparse['dep_loc'], sparse['arr_loc']], NBUCKETS ** 4)
+    #sparse['ori_dest'] = tf.feature_column.crossed_column(['origin', 'dest'], hash_bucket_size=1000)
+
+    # embed all the sparse columns
+    embed = {
+       'embed_{}'.format(colname) : tf.feature_column.embedding_column(col, 10)
+          for colname, col in sparse.items()
+    }
+    real.update(embed)
+    
     return inputs, real, sparse
 
 def wide_and_deep_classifier(inputs,
@@ -115,8 +140,11 @@ def wide_and_deep_classifier(inputs,
     model = tf.keras.Model(inputs, output)
     model.compile(optimizer='adam',
                   loss='binary_crossentropy',
-                  metrics=['accuracy'])
+                  metrics=['accuracy', rmse])
     return model
+
+def rmse(y_true, y_pred):
+    return tf.sqrt(tf.reduce_mean(tf.square(y_pred - y_true))) 
 
 def linear_classifier(inputs,
                       sparse,
@@ -128,7 +156,7 @@ def linear_classifier(inputs,
     model = tf.keras.Model(inputs, output)
     model.compile(optimizer='adam',
                   loss='binary_crossentropy',
-                  metrics=['accuracy'])
+                  metrics=['accuracy', rmse])
     return model
 
 def train_and_evaluate(model_type = 'linear'):
@@ -192,3 +220,12 @@ def train_and_evaluate(model_type = 'linear'):
                                   time.strftime("%Y%m%d-%H%M%S")))
     print('Exporting to {}'.format(export_dir))
     tf.saved_model.save(model, export_dir)
+    
+    # write out final metric
+    final_rmse = history.history['val_rmse'][-1]
+    print("Final RMSE = {}".format(final_rmse))
+    hpt = hypertune.HyperTune()
+    hpt.report_hyperparameter_tuning_metric(
+       hyperparameter_metric_tag='rmse',
+       metric_value=final_rmse,
+       global_step=1) 
