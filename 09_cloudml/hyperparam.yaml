@@ -1,5 +1,5 @@
 trainingInput:
-  scaleTier: BASIC_GPU
+  scaleTier: BASIC_CPU
   hyperparameters:
     goal: MINIMIZE
     maxTrials: 15

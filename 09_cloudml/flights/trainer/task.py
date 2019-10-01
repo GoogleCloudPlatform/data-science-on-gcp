@@ -24,6 +24,7 @@ import tensorflow as tf
 from . import model
 
 if __name__ == '__main__':
+  print("Using TensorFlow version: {}".format(tf.version.VERSION))
   parser = argparse.ArgumentParser()
 
   parser.add_argument(

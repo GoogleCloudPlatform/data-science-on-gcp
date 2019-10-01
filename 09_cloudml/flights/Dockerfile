@@ -1,8 +1,8 @@
 FROM gcr.io/deeplearning-platform-release/tf2-cpu
-COPY . /flights
-RUN apt update && \
-    apt install --yes python3-pip && \
-    pip3 install --upgrade --quiet tf-nightly-2.0-preview cloudml-hypertune
 
+#RUN python3 -m pip install --upgrade --quiet tf-nightly-2.0-preview
+RUN python3 -m pip install --upgrade --quiet cloudml-hypertune
+
+COPY . /flights
 ENV PYTHONPATH ${PYTHONPATH}:/flights
 ENTRYPOINT ["python3", "-m", "trainer.task"]
