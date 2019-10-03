@@ -52,10 +52,12 @@ public class FlightsMLService {
     List<Instance> instances = new ArrayList<>();
   }
 
+  // Update to 
   static class Prediction {
     List<Double> probabilities = new ArrayList<>();
     List<Double> logits        = new ArrayList<>();
-    int          classes;
+    List<String> classes       = new ArrayList<>();
+    List<String> class_ids     = new ArrayList<>();
     List<Double> logistic      = new ArrayList<>();
   }
 
