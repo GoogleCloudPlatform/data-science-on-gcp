@@ -3,6 +3,9 @@ package com.google.cloud.training.flights;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -17,6 +20,7 @@ import com.google.cloud.training.flights.Flight.INPUTCOLS;
 @SuppressWarnings("serial")
 public class PubSubBigQuery extends PubSubInput {
   private static final String BQ_TABLE_NAME = "flights.predictions";
+  private static final Logger LOG = LoggerFactory.getLogger(FlightsMLService.class);
 
   //    private SerializableFunction<ValueInSingleWindow, String> getTableNameFunction() {
   //      return new SerializableFunction<ValueInSingleWindow, String>() {
@@ -52,8 +56,13 @@ public class PubSubBigQuery extends PubSubInput {
           INPUTCOLS col = INPUTCOLS.values()[i];
           String name = col.name();
           String value = pred.flight.getField(col);
+          
+          LOG.info(" BQ convert - col name :" + col.name());
+          LOG.info("Pred.flight.getfields(col) :"+value);
+
           if (value.length() > 0) {
             if (types[i].equals("FLOAT")) {
+                   LOG.debug(json);
               row.set(name, Float.parseFloat(value));
             } else {
               row.set(name, value);

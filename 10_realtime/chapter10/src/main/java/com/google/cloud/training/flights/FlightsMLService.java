@@ -52,12 +52,12 @@ public class FlightsMLService {
     List<Instance> instances = new ArrayList<>();
   }
 
-  // Update to 
+  // Update for changes in Cloud AI platform default prediction response
   static class Prediction {
     List<Double> probabilities = new ArrayList<>();
     List<Double> logits        = new ArrayList<>();
     List<String> classes       = new ArrayList<>();
-    List<String> class_ids     = new ArrayList<>();
+    List<Integer> class_ids    = new ArrayList<>();
     List<Double> logistic      = new ArrayList<>();
   }
 
