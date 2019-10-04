@@ -61,6 +61,8 @@ if __name__ == '__main__':
       help='Architecture of DNN part of wide-and-deep network',
       default='32,4'
   )
+
+  # step-by-step build of what's in the chapter text
   parser.add_argument(
       '--func',
       help='read_lines find_average_label linear OR wide_deep (default)',

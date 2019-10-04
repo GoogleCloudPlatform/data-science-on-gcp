@@ -70,7 +70,7 @@ def find_average_label():
     print(sum/count) # average of the whole lot
 
 
-def get_inputs_and_features():
+def get_inputs_and_features(with_engineered_features):
     real = {
         colname : tf.feature_column.numeric_column(colname) 
           for colname in 
@@ -84,7 +84,7 @@ def get_inputs_and_features():
       'origin' : tf.feature_column.categorical_column_with_hash_bucket(
           'origin', hash_bucket_size=1000), # FIXME
       'dest'   : tf.feature_column.categorical_column_with_hash_bucket(
-          'dest', hash_bucket_size=1000)
+          'dest', hash_bucket_size=1000) # FIXME
     }
     
     inputs = {
@@ -98,30 +98,34 @@ def get_inputs_and_features():
           for colname in sparse.keys()
     })
     
-    latbuckets = np.linspace(20.0, 50.0, NBUCKETS).tolist()  # USA
-    lonbuckets = np.linspace(-120.0, -70.0, NBUCKETS).tolist() # USA
-    disc = {}
-    disc.update({
-       'd_{}'.format(key) : tf.feature_column.bucketized_column(real[key], latbuckets) 
-          for key in ['dep_lat', 'arr_lat']
-    })
-    disc.update({
-       'd_{}'.format(key) : tf.feature_column.bucketized_column(real[key], lonbuckets) 
-          for key in ['dep_lon', 'arr_lon']
-    })
+    if with_engineered_features:
+        logging.info("Adding engineered features to the model input")
+        latbuckets = np.linspace(20.0, 50.0, NBUCKETS).tolist()  # USA
+        lonbuckets = np.linspace(-120.0, -70.0, NBUCKETS).tolist() # USA
+        disc = {}
+        disc.update({
+           'd_{}'.format(key) : tf.feature_column.bucketized_column(real[key], latbuckets) 
+              for key in ['dep_lat', 'arr_lat']
+        })
+        disc.update({
+           'd_{}'.format(key) : tf.feature_column.bucketized_column(real[key], lonbuckets) 
+              for key in ['dep_lon', 'arr_lon']
+        })
 
-    # cross columns that make sense in combination
-    sparse['dep_loc'] = tf.feature_column.crossed_column([disc['d_dep_lat'], disc['d_dep_lon']], NBUCKETS*NBUCKETS)
-    sparse['arr_loc'] = tf.feature_column.crossed_column([disc['d_arr_lat'], disc['d_arr_lon']], NBUCKETS*NBUCKETS)
-    sparse['dep_arr'] = tf.feature_column.crossed_column([sparse['dep_loc'], sparse['arr_loc']], NBUCKETS ** 4)
-    #sparse['ori_dest'] = tf.feature_column.crossed_column(['origin', 'dest'], hash_bucket_size=1000)
+        # cross columns that make sense in combination
+        sparse['dep_loc'] = tf.feature_column.crossed_column([disc['d_dep_lat'], disc['d_dep_lon']], NBUCKETS*NBUCKETS)
+        sparse['arr_loc'] = tf.feature_column.crossed_column([disc['d_arr_lat'], disc['d_arr_lon']], NBUCKETS*NBUCKETS)
+        sparse['dep_arr'] = tf.feature_column.crossed_column([sparse['dep_loc'], sparse['arr_loc']], NBUCKETS ** 4)
+        #sparse['ori_dest'] = tf.feature_column.crossed_column(['origin', 'dest'], hash_bucket_size=1000)
 
-    # embed all the sparse columns
-    embed = {
-       'embed_{}'.format(colname) : tf.feature_column.embedding_column(col, 10)
-          for colname, col in sparse.items()
-    }
-    real.update(embed)
+        # embed all the sparse columns
+        embed = {
+           'embed_{}'.format(colname) : tf.feature_column.embedding_column(col, 10)
+              for colname, col in sparse.items()
+        }
+        real.update(embed)
+    #else:
+    #    sparse = {}
     
     return inputs, real, sparse
 
@@ -161,7 +165,8 @@ def linear_classifier(inputs,
 
 def train_and_evaluate(model_type = 'linear'):
     # create inputs and feature columns
-    inputs, real, sparse = get_inputs_and_features()
+    use_engineered_features = (model_type != 'linear')
+    inputs, real, sparse = get_inputs_and_features(use_engineered_features)
     
     # one-hot encode the sparse columns
     sparse = {
