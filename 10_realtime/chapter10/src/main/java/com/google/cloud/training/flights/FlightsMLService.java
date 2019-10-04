@@ -25,7 +25,7 @@ public class FlightsMLService {
   private static final Logger LOG = LoggerFactory.getLogger(FlightsMLService.class);
   private static final String PROJECT = "cloud-training-demos";
   private static String       MODEL   = "flights";
-  private static String       VERSION = "v1";
+  private static String       VERSION = "tf2";
 
   static class Instance {
     double dep_delay, taxiout, distance, avg_dep_delay, avg_arr_delay, dep_lat, dep_lon, arr_lat, arr_lon;
@@ -54,11 +54,7 @@ public class FlightsMLService {
 
   // Update for changes in Cloud AI platform default prediction response
   static class Prediction {
-    List<Double> probabilities = new ArrayList<>();
-    List<Double> logits        = new ArrayList<>();
-    List<String> classes       = new ArrayList<>();
-    List<Integer> class_ids    = new ArrayList<>();
-    List<Double> logistic      = new ArrayList<>();
+    List<Double> pred = new ArrayList<>();
   }
 
   static class Response {
@@ -68,8 +64,8 @@ public class FlightsMLService {
       double[] result = new double[predictions.size()];
       for (int i=0; i < result.length; ++i) {
         Prediction pred = predictions.get(i);
-        if (pred.probabilities.size() > 1) {
-          result[i] = pred.probabilities.get(1);
+        if (pred.pred.size() > 0) {
+          result[i] = pred.pred.get(0);
         } else {
           result[i] = defaultValue;
         }
