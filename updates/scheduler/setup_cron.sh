@@ -4,9 +4,9 @@ REGION='us-central1'
 PROJECT=$(gcloud config get-value project)
 BUCKET=cloud-training-demos-ml
 
-echo {\"bucket\":\"${BUCKET}\"} > /tmp/message
-URL="https://${REGION}-${PROJECT}.cloudfunctions.net/ingest_flights"
-
+URL="https://${REGION}-${PROJECT}.cloudfunctions.net/ingest_flights_udwaxx86mVygAmOazUcijW8zBXWNxEVM"
+TOKEN=changeme
+echo {\"bucket\":\"${BUCKET}\", \"token\":\"${TOKEN}\"} > /tmp/message
 
 gcloud pubsub topics create cron-topic
 gcloud pubsub subscriptions create cron-sub --topic cron-topic
