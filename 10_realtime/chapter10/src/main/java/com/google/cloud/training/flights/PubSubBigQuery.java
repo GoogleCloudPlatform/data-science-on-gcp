@@ -56,13 +56,13 @@ public class PubSubBigQuery extends PubSubInput {
           INPUTCOLS col = INPUTCOLS.values()[i];
           String name = col.name();
           String value = pred.flight.getField(col);
-          
+
           LOG.info(" BQ convert - col name :" + col.name());
           LOG.info("Pred.flight.getfields(col) :"+value);
+          LOG.info("Types[i] :"+types[i]);
 
           if (value.length() > 0) {
             if (types[i].equals("FLOAT")) {
-                   LOG.debug(json);
               row.set(name, Float.parseFloat(value));
             } else {
               row.set(name, value);
@@ -80,7 +80,7 @@ public class PubSubBigQuery extends PubSubInput {
   private String[] types;
   public PubSubBigQuery() {
     this.types = new String[INPUTCOLS.values().length];   
-    String[] floatPatterns = new String[] {"LAT", "LON", "DELAY", "DISTANCE", "TAXI"};
+    String[] floatPatterns = new String[] {"AIRPORT_LAT", "AIRPORT_LON", "DELAY", "DISTANCE", "TAXI"};
     String[] timePatterns  = new String[] {"TIME", "WHEELS" };
     for (int i=0; i < types.length; ++i) {
       String name = INPUTCOLS.values()[i].name();
