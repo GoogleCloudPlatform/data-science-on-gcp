@@ -12,6 +12,7 @@ Alternately, you can ingest from the original source of the data and carry out t
 * Execute monthlyupdate/ingest_flights.py specifying your bucket name, and with year of 2016 and month of 01.  Type monthlyupdate/ingest_flights.py --help to get usage help.
 This will initialize your bucket with the input files corresponding to 2015 and January 2016. These files are needed to carry out the steps that come later in this book.
 
+
 ### [Optional] Scheduling monthly downloads
 * Go to the 02_ingest/monthlyupdate folder in the repo.
 * Initialize a default AppEngine application in your project by running ./init_appengine.sh.
