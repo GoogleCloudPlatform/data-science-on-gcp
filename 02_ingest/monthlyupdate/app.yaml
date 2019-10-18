@@ -1,5 +1,4 @@
-runtime: python
-env: flex
+runtime: python37
 entrypoint: gunicorn -b :$PORT ingestapp:app --timeout 120
 service: flights
 manual_scaling:
@@ -12,7 +11,7 @@ env_variables:
 
 handlers:
 - url: /ingest
-  script: ingestapp.app
+  script: auto
 
 - url: /.*
-  script: ingestapp.app
+  script: auto
