@@ -1,24 +1,40 @@
 #!/bin/bash
 
-TF_VERSION="1.4"   # CHANGE as needed
-
 if [ "$#" -ne 2 ]; then
-    echo "Usage: ./deploy_model.sh bucket-name bucket-region"
+    echo "Usage:        ./deploy_model.sh bucket best_model"
+    echo "   eg:        ./deploy_model.sh cloud-training-demos-ml 15/"
+    echo "   eg:        ./deploy_model.sh cloud-training-demos-ml ''"
     exit
 fi
 
 BUCKET=$1
-REGION=$2
+PROJECT=$(gcloud config get-value project)
 
-MODEL_NAME="flights"
-MODEL_VERSION="v1"
+BEST_MODEL=$2   # use an empty string if you didn't do hyperparam tuning
 
-# result of training
-MODEL_LOCATION=$(gsutil ls gs://${BUCKET}/flights/chapter9/output/export/Servo/ | tail -1)
+MODEL_NAME=flights
+VERSION_NAME=tf2
+REGION=us-central1
+EXPORT_PATH=$(gsutil ls gs://$BUCKET/flights/trained_model/${BEST_MODEL}export | tail -1)
+echo $EXPORT_PATH
 
-echo "Deleting and deploying $MODEL_NAME $MODEL_VERSION from $MODEL_LOCATION ... this will take a few minutes ... the first two calls to delete version/model will throw ERROR if this is the first time you are deploying the model (you can ignore those)"
+if [[ $(gcloud ai-platform models list --format='value(name)' | grep $MODEL_NAME) ]]; then
+    echo "$MODEL_NAME already exists"
+else
+    # create model
+    echo "Creating $MODEL_NAME"
+    gcloud ai-platform models create --regions=$REGION $MODEL_NAME
+fi
 
-gcloud ml-engine versions delete ${MODEL_VERSION} --model ${MODEL_NAME}
-gcloud ml-engine models delete ${MODEL_NAME}
-gcloud ml-engine models create ${MODEL_NAME} --regions $REGION
-gcloud ml-engine versions create ${MODEL_VERSION} --model ${MODEL_NAME} --origin ${MODEL_LOCATION} --runtime-version=${TF_VERSION}
+if [[ $(gcloud ai-platform versions list --model $MODEL_NAME --format='value(name)' | grep $VERSION_NAME) ]]; then
+    echo "Deleting already existing $MODEL_NAME:$VERSION_NAME ... "
+    gcloud ai-platform versions delete --quiet --model=$MODEL_NAME $VERSION_NAME
+    echo "Please run this cell again if you don't see a Creating message ... "
+    sleep 10
+fi
+
+# create model
+echo "Creating $MODEL_NAME:$VERSION_NAME"
+gcloud ai-platform versions create --model=$MODEL_NAME $VERSION_NAME --async \
+       --framework=tensorflow --python-version=3.5 --runtime-version=1.14 \
+       --origin=$EXPORT_PATH --staging-bucket=gs://$BUCKET

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
@@ -40,17 +40,17 @@ request_data = {'instances':
 }
 
 PROJECT = args.project
-parent = 'projects/%s/models/%s/versions/%s' % (PROJECT, 'flights', 'v1')
+parent = 'projects/%s/models/%s/versions/%s' % (PROJECT, 'flights', 'tf2')
 response = api.projects().predict(body=request_data, name=parent).execute()
-print "response={}".format(response)
+print("response={}".format(response))
 
-probs = [pred[u'probabilities'][1] for pred in response[u'predictions']]
-print "probs={}".format(probs)
+probs = [pred[u'pred'][0] for pred in response[u'predictions']]
+print("probs={}".format(probs))
 
 # find the maximal impact variable
 max_impact = 0.3  # unless impact of var > 0.3, we'll go with 'typical'
 max_impact_factor =  0
-for factor in xrange(1, len(probs)):
+for factor in range(1, len(probs)):
    impact = abs(probs[factor] - probs[0])
    if impact > max_impact:
       max_impact = impact
@@ -61,9 +61,9 @@ reasons = ["this flight appears rather typical",
            "the taxiout time is typically 16.0 minutes",
            "the avg_arrival_delay is typically 4 minutes"]
 
-print "\n\nThe ontime probability={}; the key reason is that {} {}".format(
+print("\n\nThe ontime probability={}; the key reason is that {} {}".format(
            probs[0],
            reasons[max_impact_factor],
            "-- had it been typical, the ontime probability would have been {}".format(probs[max_impact_factor]) if max_impact_factor > 0 else ""
-      )
+      ))
 

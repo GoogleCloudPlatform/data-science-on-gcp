@@ -8,14 +8,12 @@ If you didn't go through Chapter 2, the simplest way to get the files you need i
 
 ### Batch processing in DataFlow
 * Setup:
-        ```
-	cd simulate;
-        ./install_packages.sh
-        ```
+    ```
+	cd simulate; ./install_packages.sh
+    ```
 * Parsing airports data:
 	```
-	cd 04_streaming/simulate
-	./install_packages.sh
+	cd simulate
 	./df01.py
 	head extracted_airports-00000*
 	rm extracted_airports-*
@@ -72,17 +70,14 @@ If you didn't go through Chapter 2, the simplest way to get the files you need i
 			  10
 	```
 ### Stream processing
-* In CloudShell, follow the OAuth2 workflow so that the python script can run code on your behalf:
+* In CloudShell, run
 	```
-	gcloud auth application-default login
-	```
-* Run
-	```
-	python ./simulate.py --startTime '2015-05-01 00:00:00 UTC' --endTime '2015-05-04 00:00:00 UTC' --speedFactor=30 --project $DEVSHELL_PROJECT_ID
+    cd simulate
+	python3 ./simulate.py --startTime '2015-05-01 00:00:00 UTC' --endTime '2015-05-04 00:00:00 UTC' --speedFactor=30 --project $DEVSHELL_PROJECT_ID
     ```
 * In another CloudShell tab, run:
 	```
-	cd 04_streaming/realtime
+	cd realtime
 	./run_on_cloud.sh <BUCKET-NAME>
 	```
 * Go to the GCP web console in the Dataflow section and monitor the job.

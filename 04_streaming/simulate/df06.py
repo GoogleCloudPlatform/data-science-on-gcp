@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2016 Google Inc.
 #
@@ -150,10 +150,10 @@ def run(project, bucket, dataset):
 
    (events 
       | 'events:totablerow' >> beam.Map(lambda fields: create_row(fields)) 
-      | 'events:out' >> beam.io.Write(beam.io.BigQuerySink(
+      | 'events:out' >> beam.io.WriteToBigQuery(
                               events_output, schema=schema,
                               write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-                              create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED))
+                              create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
    )
 
    pipeline.run()

@@ -14,9 +14,9 @@ This will initialize your bucket with the input files corresponding to 2015 and 
 
 ### [Optional] Scheduling monthly downloads
 * Go to the 02_ingest/monthlyupdate folder in the repo.
-* Initialize a default AppEngine application in your project by running ./init_appengine.sh.
-* Open the file app.yaml and change the CLOUD_STORAGE_BUCKET to reflect the name of your bucket.
-* Run ./deploy.sh to deploy the Cron service app.  This will take 5-10 minutes.
-* Visit the GCP web console and navigate to the AppEngine section. You should see two services: one the default (which is just a Hello World application) and the other is the flights service.
-* Click on the flights service, follow the link to ingest the data and you’ll find that your access is forbidden -- the ingest capability is available only to the Cron service (or from the GCP web console by clicking the “Run now” button in the task queues section of AppEngine). If you click on “Run now”, a few minutes later, you’ll see the next month’s data show up in the storage bucket.
-* Stop the flights application -- we won’t need it any further.
+* Generate a new Personal Access Token by running ./generate_token.sh -- Note the token printed.
+* Modify main.py to have this token.</p>
+* Deploy Cloud Function in your project by running ./deploy_cf.sh -- Note the URL that is printed.
+* Try out ingest by running ./call_cf.sh supplying the necessary parameters.</p>
+* Schedule ingest by running ./setup_cron.sh supplying the necessary parameters.
+* Visit the GCP Console for Cloud Functions and Cloud Scheduler and delete the function and the scheduled task—you won’t need them any further.
