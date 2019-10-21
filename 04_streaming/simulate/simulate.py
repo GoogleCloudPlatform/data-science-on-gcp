@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2016 Google Inc.
 #
@@ -92,13 +92,13 @@ if __name__ == '__main__':
 
 
    # run the query to pull simulated events
-   querystr = """\
+   querystr = """
 SELECT
   EVENT,
   TIMESTAMP_ADD(NOTIFY_TIME, INTERVAL {} SECOND) AS NOTIFY_TIME,
   EVENT_DATA
 FROM
-  `flights.simevents`
+  flights.simevents
 WHERE
   NOTIFY_TIME >= TIMESTAMP('{}')
   AND NOTIFY_TIME < TIMESTAMP('{}')
@@ -122,5 +122,5 @@ ORDER BY
    # notify about each row in the dataset
    programStartTime = datetime.datetime.utcnow()
    simStartTime = datetime.datetime.strptime(args.startTime, TIME_FORMAT).replace(tzinfo=pytz.UTC)
-   print ('Simulation start time is {}'.format(simStartTime))
-   notify (publisher, topics, rows, simStartTime, programStartTime, args.speedFactor)
+   print('Simulation start time is {}'.format(simStartTime))
+   notify(publisher, topics, rows, simStartTime, programStartTime, args.speedFactor)

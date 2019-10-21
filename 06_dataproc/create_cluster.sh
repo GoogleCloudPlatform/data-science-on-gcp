@@ -5,7 +5,7 @@ if [ "$#" -ne 2 ]; then
     exit
 fi
 
-PROJECT=$DEVSHELL_PROJECT_ID
+PROJECT=$(gcloud config get-value project)
 BUCKET=$1
 ZONE=$2
 INSTALL=gs://$BUCKET/flights/dataproc/install_on_cluster.sh
@@ -15,11 +15,14 @@ sed "s/CHANGE_TO_USER_NAME/$USER/g" install_on_cluster.sh > /tmp/install_on_clus
 gsutil cp /tmp/install_on_cluster.sh $INSTALL
 
 # create cluster
-gcloud dataproc clusters create \
+gcloud beta dataproc clusters create \
    --num-workers=2 \
    --scopes=cloud-platform \
-   --worker-machine-type=n1-standard-2 \
+   --worker-machine-type=n1-standard-4 \
    --master-machine-type=n1-standard-4 \
+   --image-version=1.4 \
+   --enable-component-gateway \
+   --optional-components=ANACONDA,JUPYTER \
    --zone=$ZONE \
-   --initialization-actions=gs://dataproc-initialization-actions/datalab/datalab.sh,$INSTALL \
+   --initialization-actions=$INSTALL \
    ch6cluster

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
@@ -34,6 +34,6 @@ request_data = {'instances':
 }
 
 PROJECT = args.project
-parent = 'projects/%s/models/%s/versions/%s' % (PROJECT, 'flights', 'v1')
+parent = 'projects/%s/models/%s/versions/%s' % (PROJECT, 'flights', 'tf2')
 response = api.projects().predict(body=request_data, name=parent).execute()
-print "response={0}".format(response)
+print("response={0}".format(response))
