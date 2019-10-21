@@ -81,7 +81,7 @@ if __name__ == '__main__':
    args = parser.parse_args()
    bqclient = bq.Client(args.project)
    dataset =  bqclient.get_dataset( bqclient.dataset('flights') )  # throws exception on failure
- 
+
    # jitter?
    if args.jitter == 'exp':
       jitter = 'CAST (-LN(RAND()*0.99 + 0.01)*30 + 90.5 AS INT64)'
@@ -90,7 +90,7 @@ if __name__ == '__main__':
    else:
       jitter = '0'
 
- 
+
    # run the query to pull simulated events
    querystr = """
 SELECT
@@ -108,7 +108,7 @@ ORDER BY
    rows = bqclient.query(querystr.format(jitter,
                                          args.startTime,
                                          args.endTime))
-   
+
    # create one Pub/Sub notification topic for each type of event
    publisher = pubsub.PublisherClient()
    topics = {}
@@ -118,9 +118,9 @@ ORDER BY
           publisher.get_topic(topics[event_type])
        except:
           publisher.create_topic(topics[event_type])
-   
+
    # notify about each row in the dataset
-   programStartTime = datetime.datetime.utcnow() 
+   programStartTime = datetime.datetime.utcnow()
    simStartTime = datetime.datetime.strptime(args.startTime, TIME_FORMAT).replace(tzinfo=pytz.UTC)
    print('Simulation start time is {}'.format(simStartTime))
    notify(publisher, topics, rows, simStartTime, programStartTime, args.speedFactor)
