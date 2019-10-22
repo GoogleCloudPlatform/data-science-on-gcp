@@ -15,3 +15,4 @@ handlers:
 
 - url: /.*
   script: auto
+
