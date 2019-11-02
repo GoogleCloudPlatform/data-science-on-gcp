@@ -8,7 +8,7 @@ If you didn't go through Chapters 2-8, the simplest way to catch up is to copy d
 	```
 	bq mk flights
 	```
-* Go to the 05_bqdatalab folder of the repo, run the script to load data into BigQuery:
+* Go to the 05_bqnotebook folder of the repo, run the script to load data into BigQuery:
 	```
 	bash load_into_bq.sh <BUCKET-NAME>
 	```
@@ -26,7 +26,7 @@ If you didn't go through Chapters 2-8, the simplest way to catch up is to copy d
 	ORDER BY
 	  FL_DATE
 	```
-* Go to the 08_streaming folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
+* Go to the 08_dataflow folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
 
 
 ### This Chapter
