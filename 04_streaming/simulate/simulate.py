@@ -38,8 +38,8 @@ def publish(publisher, topics, allevents, notify_time):
 def notify(publisher, topics, rows, simStartTime, programStart, speedFactor):
    # sleep computation
    def compute_sleep_secs(notify_time):
-        time_elapsed = (datetime.datetime.utcnow() - programStart).seconds
-        sim_time_elapsed = (notify_time - simStartTime).seconds / speedFactor
+        time_elapsed = (datetime.datetime.utcnow() - programStart).total_seconds()
+        sim_time_elapsed = (notify_time - simStartTime).total_seconds() / speedFactor
         to_sleep_secs = sim_time_elapsed - time_elapsed
         return to_sleep_secs
 
