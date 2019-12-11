@@ -24,4 +24,4 @@ gcloud beta ai-platform jobs submit training $JOBID \
    --master-image-uri=$IMAGE \
    --master-machine-type=n1-standard-4 --scale-tier=CUSTOM \
    -- \
-   --bucket=$BUCKET --num_examples=1000000 --func=${FUNC}
+   --bucket=$BUCKET --num_examples=${NUM_EXAMPLES} --func=${FUNC}
