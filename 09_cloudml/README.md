@@ -31,27 +31,14 @@ If you didn't go through Chapters 2-8, the simplest way to catch up is to copy d
 
 ### This Chapter
 In CloudShell, or in your local development machine:
-* Create a small sample of the full dataset you created in Chapter 8 in ~/data:
-    ```
-    cd data-science-on-gcp/09_cloudml
-    ./create_small.sh bucket-name
-    ```
-* If in CloudShell, enable Boost mode. Then, install tensorflow:
-    ```
-    pip install tensorflow
-    ```
-* Train locally:
-    ```
-    ./train_local.sh
-    ```
 * Submit training job to Cloud AI Platform to train on the full dataset:
     ```
-    ./train_cloud.sh bucket-name region-name
+    ././train_model.sh  bucket-name linear 100000
     ```
   This will take about 1.5 hours.
-* Deploy the trained model to Cloud ML Engine:
+* Deploy the trained model to Cloud AI Platform:
     ```
-    ./deploy_model.sh bucket-name region-name
+    ./deploy_model.sh bucket-name
     ```
   This will take 3-5 minutes.
 * Get the model to predict:
