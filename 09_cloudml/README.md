@@ -44,17 +44,7 @@ In CloudShell, or in your local development machine:
     ```
     ./train_local.sh
     ```
-* To submit training job to Cloud ML Engine on subset of data:
-    ```
-    ./authorize_cmle.sh bucket-name
-    ./retrain_cloud.sh bucket-name region-name
-    ```
-  The authorization command is needed to allow the Cloud ML Engine service to read
-  and write to your bucket.
-  The region name will be something like `us-central1`.  Go to the GCP console (
-  https://console.cloud.google.com/mlengine) to monitor job progress. This will take
-  10-15 minutes.
-* Submit training job to Cloud ML Engine to train on the full dataset:
+* Submit training job to Cloud AI Platform to train on the full dataset:
     ```
     ./train_cloud.sh bucket-name region-name
     ```
