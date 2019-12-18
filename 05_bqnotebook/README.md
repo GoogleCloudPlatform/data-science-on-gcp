@@ -41,7 +41,7 @@ If you didn't go through Chapters 2-4, the simplest way to catch up is to copy d
 	CREATE OR REPLACE TABLE flights.trainday AS
         SELECT
 	  FL_DATE,
-	  IF(MOD(ABS(FARM_FINGERPRINT(CAST(FL_DATE AS STRING))), 100) < 70, 'True', 'False') AS is_train_day
+	  IF(ABS(MOD(FARM_FINGERPRINT(CAST(FL_DATE AS STRING)), 100)) < 70, 'True', 'False') AS is_train_day
 	FROM (
 	  SELECT
 	    DISTINCT(FL_DATE) AS FL_DATE
