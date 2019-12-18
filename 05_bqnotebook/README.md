@@ -52,12 +52,8 @@ If you didn't go through Chapters 2-4, the simplest way to catch up is to copy d
 	```
   This table will be used throughout the rest of the book.
 
-* In CloudShell, create a Datalab instance (change the zone to match where your bucket is located):
-	```
-	datalab create --zone us-central1-a dsongcp
-	```
-* Once you get the message that the instance is reachable on localhost:8081, navigate to the web page using the Web Preview button on the top-right of Cloud Shell.
+* Start up a Cloud AI Platforms Notebook instance.
 
-* Within Datalab, start a new notebook. Then, copy and paste cells from <a href="exploration.ipynb">exploration.ipynb</a> and click Run to execute the code.
+* Start a new notebook. Then, copy and paste cells from <a href="exploration.ipynb">exploration.ipynb</a> and click Run to execute the code.
 
 
