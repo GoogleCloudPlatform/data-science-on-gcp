@@ -1,3 +1,4 @@
+from __future__ import print_function
 from pyspark.mllib.classification import LogisticRegressionWithLBFGS
 from pyspark.mllib.regression import LabeledPoint
 from pyspark.sql import SparkSession
@@ -97,11 +98,11 @@ def eval(labelpred):
 # Evaluate model
 lrmodel.clearThreshold() # so it returns probabilities
 labelpred = examples.map(lambda p: (p.label, lrmodel.predict(p.features)))
-print 'All flights:'
-print eval(labelpred)
+print('All flights:')
+print(eval(labelpred))
 
 # keep only those examples near the decision threshold
-print 'Flights near decision threshold:'
+print('Flights near decision threshold:')
 labelpred = labelpred.filter(lambda (label, pred): pred > 0.65 and pred < 0.75)
-print eval(labelpred)
+print(eval(labelpred))
 
