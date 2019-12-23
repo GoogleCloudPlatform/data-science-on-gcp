@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import print_function
 import apache_beam as beam
 import csv
 
@@ -39,7 +40,7 @@ def as_utc(date, hhmm, tzone):
       else:
          return '',0 # empty string corresponds to canceled flights
    except ValueError as e:
-      print '{} {} {}'.format(date, hhmm, tzone)
+      print('{} {} {}'.format(date, hhmm, tzone))
       raise e
 
 def add_24h_if_before(arrtime, deptime):

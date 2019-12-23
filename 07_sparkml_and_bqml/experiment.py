@@ -1,3 +1,4 @@
+from __future__ import print_function
 from pyspark.mllib.classification import LogisticRegressionWithLBFGS
 from pyspark.mllib.regression import LabeledPoint
 from pyspark.sql import SparkSession
@@ -146,5 +147,5 @@ def eval(labelpred):
             'correct_noncancel': float(corr_nocancel)/nocancel_denom, \
             'rmse': np.sqrt(totsqe/float(cancel_denom + nocancel_denom))
            }
-print eval(labelpred)
+print(eval(labelpred))
 
