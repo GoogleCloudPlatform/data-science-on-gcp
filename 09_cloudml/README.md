@@ -32,27 +32,15 @@ If you didn't go through Chapters 2-8, the simplest way to catch up is to copy d
 ### This Chapter
 You can do it two ways: from a notebook or from CloudShell.
 
-#### Option 1: From a notebook
-* Start Cloud AI Platform Notebook instance
-* git clone this repository
-* Run the cells in flights_caip.ipynb
+#### 1. From AI Platform Notebooks
+* Start Cloud AI Platform Notebook instance with TensorFlow 2.1 or greater
+* Open a Terminal and type:
+  ``` git clone https://github.com/GoogleCloudPlatform/data-science-on-gcp```
+* Browse to, and open flights_model_tf2.ipynb
+* Run the code to train and deploy the model
+* The above code was on a small subset of the model. To run on the full dataset, run the cells in flights_caip.ipynb
 
-#### Option 2: From CloudShell or in your local development machine
-* Create a Docker image
-  ```
-  cd 09_cloudml/flights
-  bash push_docker.sh
-  ```
-* Submit training job to Cloud AI Platform to train on the full dataset:
-    ```
-    ././train_model.sh  bucket-name linear 100000
-    ```
-  This will take about 1.5 hours.
-* Deploy the trained model to Cloud AI Platform:
-    ```
-    ./deploy_model.sh bucket-name
-    ```
-  This will take 3-5 minutes.
+#### (Optional) From CloudShell
 * Get the model to predict:
     ```
     ./call_predict.py --project=$(gcloud config get-value core/project)

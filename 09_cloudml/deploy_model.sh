@@ -36,5 +36,5 @@ fi
 # create model
 echo "Creating $MODEL_NAME:$VERSION_NAME"
 gcloud ai-platform versions create --model=$MODEL_NAME $VERSION_NAME --async \
-       --framework=tensorflow --python-version=3.5 --runtime-version=1.14 \
+       --framework=tensorflow --python-version=3.7 --runtime-version=2.1 \
        --origin=$EXPORT_PATH --staging-bucket=gs://$BUCKET

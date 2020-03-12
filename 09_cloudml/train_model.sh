@@ -16,12 +16,11 @@ REGION=us-central1
 JOBID=flights_$(date +%Y%m%d_%H%M%S)
 gsutil -m rm -rf gs://$BUCKET/flights/trained_model
 
-#IMAGE=gcr.io/deeplearning-platform-release/tf2-cpu
-IMAGE=gcr.io/$PROJECT/flights_training_container
-
 gcloud beta ai-platform jobs submit training $JOBID \
    --staging-bucket=gs://$BUCKET  --region=$REGION \
-   --master-image-uri=$IMAGE \
+   --module-name=trainer.task \
+   --python-version=3.7 --runtime-version=2.1 \
+   --package-path=${PWD}/flights/trainer \
    --master-machine-type=n1-standard-4 --scale-tier=CUSTOM \
    -- \
    --bucket=$BUCKET --num_examples=${NUM_EXAMPLES} --func=${FUNC}
