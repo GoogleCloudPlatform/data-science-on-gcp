@@ -78,7 +78,7 @@ If you didn't go through Chapter 2, the simplest way to get the files you need i
 * In another CloudShell tab, run:
 	```
 	cd realtime
-	./run_on_cloud.sh <BUCKET-NAME>
+	./run_oncloud.sh <BUCKET-NAME>
 	```
 * Go to the GCP web console in the Dataflow section and monitor the job.
 * Once you see events being written into BigQuery, you can query them from the BigQuery console:
