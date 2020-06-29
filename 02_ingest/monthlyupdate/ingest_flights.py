@@ -26,9 +26,15 @@ from google.cloud.storage import Blob
 
 try:
     from urllib.request import urlopen as impl
+    import ssl
+
+    ctx_no_secure = ssl.create_default_context()
+    ctx_no_secure.set_ciphers('HIGH:!DH:!aNULL')
+    ctx_no_secure.check_hostname = False
+    ctx_no_secure.verify_mode = ssl.CERT_NONE
     # For Python 3.0 and later
     def urlopen(url, data):
-        return impl(url, data.encode('utf-8'))
+        return impl(url, data.encode('utf-8'), context=ctx_no_secure)
     def remove_quote(text):
         return text.translate(str.maketrans('','', '"'))
 except ImportError as error:
