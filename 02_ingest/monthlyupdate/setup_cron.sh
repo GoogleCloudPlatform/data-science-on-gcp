@@ -9,10 +9,10 @@ fi
 PROJECT=$(gcloud config get-value project)
 BUCKET=$1
 REGION=$2
-PATH=$3
+UPATH=$3
 TOKEN=$4
 
-URL="https://${REGION}-${PROJECT}.cloudfunctions.net/${PATH}"
+URL="https://${REGION}-${PROJECT}.cloudfunctions.net/${UPATH}"
 echo {\"bucket\":\"${BUCKET}\", \"token\":\"${TOKEN}\"} > /tmp/message
 
 gcloud pubsub topics create cron-topic
