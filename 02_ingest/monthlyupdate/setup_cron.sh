@@ -13,7 +13,7 @@ UPATH=$3
 TOKEN=$4
 
 URL="https://${REGION}-${PROJECT}.cloudfunctions.net/${UPATH}"
-echo {\"bucket\":\"${BUCKET}\", \"token\":\"${TOKEN}\"} > /tmp/message
+echo {\"bucket\":\"${BUCKET}\"\,\"token\":\"${TOKEN}\"} > /tmp/message
 
 gcloud pubsub topics create cron-topic
 gcloud pubsub subscriptions create cron-sub --topic cron-topic
