@@ -22,7 +22,7 @@ from ingest_flights import *
 def ingest_flights(request):
    try:
       logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
-      json = request.get_json(force=True)
+      json = request.get_json(force=True) # https://stackoverflow.com/questions/53216177/http-triggering-cloud-function-with-cloud-scheduler/60615210#60615210
       
       if escape(json['token']) != 'DI8TWPzTedNF0b3B8meFPxXSWw6m3bKG':
          logging.info('Ignoring request without valid token')
