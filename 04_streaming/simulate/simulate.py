@@ -19,7 +19,7 @@ import pytz
 import logging
 import argparse
 import datetime
-from google.cloud import pubsub
+from google.cloud import pubsub_v1 # Upgrading The Library
 import google.cloud.bigquery as bq
 
 TIME_FORMAT = '%Y-%m-%d %H:%M:%S %Z'
@@ -110,14 +110,17 @@ ORDER BY
                                          args.endTime))
 
    # create one Pub/Sub notification topic for each type of event
-   publisher = pubsub.PublisherClient()
+   publisher = pubsub_v1.PublisherClient()
    topics = {}
    for event_type in ['wheelsoff', 'arrived', 'departed']:
        topics[event_type] = publisher.topic_path(args.project, event_type)
        try:
-          publisher.get_topic(topics[event_type])
+         # Getting the new topics from PubSub
+          for topic in publisher.list_topics(request={"project": project_path}):
+                print(topic)
        except:
-          publisher.create_topic(topics[event_type])
+         #Creating New topics
+           publisher.create_topic(request={"name": topics[event_type]})
 
    # notify about each row in the dataset
    programStartTime = datetime.datetime.utcnow()
