@@ -18,5 +18,5 @@ echo $URL
 echo {\"year\":\"2016\"\,\"month\":\"02\"\,\"bucket\":\"${BUCKET}\"\,\"token\":\"${TOKEN}\"} > /tmp/message
 cat /tmp/message
 
-curl -X POST $URL -H "Content-Type:application/json" --data-binary @/tmp/message
+curl -k -X POST $URL -H "Content-Type:application/json" --data-binary @/tmp/message
 
