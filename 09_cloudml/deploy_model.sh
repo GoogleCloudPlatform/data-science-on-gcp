@@ -15,7 +15,7 @@ BEST_MODEL=$2   # use an empty string if you didn't do hyperparam tuning
 MODEL_NAME=flights
 VERSION_NAME=tf2
 REGION=us-central1
-EXPORT_PATH=$(gsutil ls gs://$BUCKET/flights/trained_model/${BEST_MODEL}export | tail -1)
+EXPORT_PATH=$(gsutil ls gs://$BUCKET/flights/trained_model/${BEST_MODEL}/export | tail -1)
 echo $EXPORT_PATH
 
 if [[ $(gcloud ai-platform models list --format='value(name)' | grep $MODEL_NAME) ]]; then
