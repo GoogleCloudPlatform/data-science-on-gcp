@@ -17,10 +17,18 @@ Source code accompanying book:
 ### Try out the code on Google Cloud Platform
 <a href="https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/GoogleCloudPlatform/data-science-on-gcp&page=editor&open_in_editor=README.md"> <img alt="Open in Cloud Shell" src ="http://gstatic.com/cloudssh/images/open-btn.png"></a>
 
+The most common problem that the Bureau of Transportation website to download the airline dataset is down or has changed their throttling.
+Please use the instructions in 02_ingest/README.md to copy the data from my bucket. The rest of the chapters work off the data in the
+bucket, and so are fine. The code on Qwiklabs (see below) is **continually tested**, and this repo is kept up-to-date.
+
+So, the code works. If in doubt, please double check that you are following the instructions.
+
 ### Try out the code on Qwiklabs
 
 - [Data Science on the Google Cloud Platform Quest](https://google.qwiklabs.com/quests/43)
 - [Data Science on Google Cloud Platform: Machine Learning Quest](https://google.qwiklabs.com/quests/50)
+
+
 
 ### Purchase book
 [Read on-line or download PDF of book](http://shop.oreilly.com/product/0636920057628.do)
