@@ -109,7 +109,7 @@ def create_row(fields):
     featdict['EVENT_DATA'] = ','.join(fields)
     return featdict
  
-def run(project, bucket, dataset):
+def run(project, bucket, dataset, region):
    argv = [
       '--project={0}'.format(project),
       '--job_name=ch04timecorr',
@@ -118,6 +118,7 @@ def run(project, bucket, dataset):
       '--temp_location=gs://{0}/flights/temp/'.format(bucket),
       '--setup_file=./setup.py',
       '--max_num_workers=8',
+      '--region={}'.format(region),
       '--autoscaling_algorithm=THROUGHPUT_BASED',
       '--runner=DataflowRunner'
    ]
@@ -163,9 +164,10 @@ if __name__ == '__main__':
    parser = argparse.ArgumentParser(description='Run pipeline on the cloud')
    parser.add_argument('-p','--project', help='Unique project ID', required=True)
    parser.add_argument('-b','--bucket', help='Bucket where your data were ingested in Chapter 2', required=True)
+   parser.add_argument('-r','--region', help='Region in which to run the Dataflow job. Choose the same region as your bucket.', required=True)
    parser.add_argument('-d','--dataset', help='BigQuery dataset', default='flights')
    args = vars(parser.parse_args())
 
    print ("Correcting timestamps and writing to BigQuery dataset {}".format(args['dataset']))
   
-   run(project=args['project'], bucket=args['bucket'], dataset=args['dataset'])
+   run(project=args['project'], bucket=args['bucket'], dataset=args['dataset'], region=args['region'])
