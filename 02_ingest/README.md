@@ -1,5 +1,8 @@
 # 2. Ingesting data onto the Cloud
 
+### Create a bucket
+* Go to the Storage section of the GCP web console and create a new bucket
+
 ### Populate your bucket with the data you will need for the book
 The simplest way to get the files you need is to copy it from my bucket:
 * Go to the 02_ingest folder of the repo
