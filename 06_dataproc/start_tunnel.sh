@@ -1,6 +1,8 @@
 #!/bin/bash
 
 ZONE=us-central1-a
-gcloud compute ssh  --zone=$ZONE  \
-  --ssh-flag="-D 1080" --ssh-flag="-N" --ssh-flag="-n" \
-  ch6cluster-m
+PROJECT=$(gcloud config get-value project)
+gcloud compute ssh  --zone=$ZONE --project=${PROJECT} \
+  ch6cluster-m \
+  -- \
+  -D 1080 -N
