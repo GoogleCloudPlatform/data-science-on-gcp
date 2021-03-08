@@ -16,7 +16,7 @@ REGION=us-central1
 JOBID=flights_$(date +%Y%m%d_%H%M%S)
 gsutil -m rm -rf gs://$BUCKET/flights/trained_model
 
-gcloud beta ai-platform jobs submit training $JOBID \
+gcloud ai-platform jobs submit training $JOBID \
    --staging-bucket=gs://$BUCKET  --region=$REGION \
    --module-name=trainer.task \
    --python-version=3.7 --runtime-version=2.1 \
