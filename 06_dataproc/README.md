@@ -99,5 +99,5 @@ On your <em>local</em> machine (<b>i.e. not on GCP</b>):
     ```
 
 ### Delete the cluster
-* Delete the cluster either from the GCP web console or by typing in CloudShell, ```./delete_cluster.sh```
+* Delete the cluster either from the GCP web console or by typing in CloudShell, ```./delete_cluster.sh <YOUR REGION>```
  
