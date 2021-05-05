@@ -82,7 +82,7 @@ On your <em>local</em> machine (<b>i.e. not on GCP</b>):
 * SSH into the master node of the cluster by going to the GCP console
 * Clone the repository:
     ```
-    git clone git clone https://github.com/GoogleCloudPlatform/data-science-on-gcp
+    git clone https://github.com/GoogleCloudPlatform/data-science-on-gcp
     ```
 * Change to the directory for this chapter:
     ```
@@ -99,5 +99,5 @@ On your <em>local</em> machine (<b>i.e. not on GCP</b>):
     ```
 
 ### Delete the cluster
-* Delete the cluster either from the GCP web console or by typing in CloudShell, ```./delete_cluster.sh```
+* Delete the cluster either from the GCP web console or by typing in CloudShell, ```./delete_cluster.sh <YOUR REGION>```
  
