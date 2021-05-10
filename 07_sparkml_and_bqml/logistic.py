@@ -78,10 +78,15 @@ testdata = spark.sql(testquery)
 examples = testdata.rdd.map(to_example)
 
 def eval(labelpred):
-    cancel = labelpred.filter(lambda (label, pred): pred < 0.7)
-    nocancel = labelpred.filter(lambda (label, pred): pred >= 0.7)
-    corr_cancel = cancel.filter(lambda (label, pred): label == int(pred >= 0.7)).count()
-    corr_nocancel = nocancel.filter(lambda (label, pred): label == int(pred >= 0.7)).count()
+    ''' 
+        data = (label, pred)
+            data[0] = label
+            data[1] = pred
+    '''
+    cancel = labelpred.filter(lambda data: data[1] < 0.7)
+    nocancel = labelpred.filter(lambda data: data[1] >= 0.7)
+    corr_cancel = cancel.filter(lambda data: data[0] == int(data[1] >= 0.7)).count()
+    corr_nocancel = nocancel.filter(lambda data: data[0] == int(data[1] >= 0.7)).count()
     
     cancel_denom = cancel.count()
     nocancel_denom = nocancel.count()
