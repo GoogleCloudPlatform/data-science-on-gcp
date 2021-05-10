@@ -128,24 +128,26 @@ evaldata = spark.sql(evalquery).repartition(1000)
 examples = evaldata.rdd.map(to_example)
 labelpred = examples.map(lambda p: (p.label, lrmodel.predict(p.features)))
 def eval(labelpred):
-    cancel = labelpred.filter(lambda (label, pred): pred == 0)
-    nocancel = labelpred.filter(lambda (label, pred): pred == 1)
-    corr_cancel = cancel.filter(lambda (label, pred): label == pred).count()
-    corr_nocancel = nocancel.filter(lambda (label, pred): label == pred).count()
-    totsqe = labelpred.map(lambda (label, pred): (label-pred)*(label-pred)).sum()
-
+    ''' 
+        data = (label, pred)
+            data[0] = label
+            data[1] = pred
+    '''
+    cancel = labelpred.filter(lambda data: data[1] < 0.7)
+    nocancel = labelpred.filter(lambda data: data[1] >= 0.7)
+    corr_cancel = cancel.filter(lambda data: data[0] == int(data[1] >= 0.7)).count()
+    corr_nocancel = nocancel.filter(lambda data: data[0] == int(data[1] >= 0.7)).count()
+    
     cancel_denom = cancel.count()
     nocancel_denom = nocancel.count()
     if cancel_denom == 0:
         cancel_denom = 1
     if nocancel_denom == 0:
         nocancel_denom = 1
-
     return {'total_cancel': cancel.count(), \
             'correct_cancel': float(corr_cancel)/cancel_denom, \
             'total_noncancel': nocancel.count(), \
-            'correct_noncancel': float(corr_nocancel)/nocancel_denom, \
-            'rmse': np.sqrt(totsqe/float(cancel_denom + nocancel_denom))
+            'correct_noncancel': float(corr_nocancel)/nocancel_denom \
            }
 print(eval(labelpred))
 

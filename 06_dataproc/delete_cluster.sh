@@ -1,4 +1,4 @@
-if [ "$#" -ne 2 ]; then
+if [ "$#" -ne 1 ]; then
     echo "Usage: ./delete_cluster.sh region"
     exit
 fi
