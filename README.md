@@ -13,7 +13,7 @@ Source code accompanying book:
   O'Reilly, Jan 2022
   </td>
   <td>
-  Branch <a href="https://github.com/GoogleCloudPlatform/data-science-on-gcp/tree/edition2">edition2</a>
+  Branch <a href="https://github.com/GoogleCloudPlatform/data-science-on-gcp/tree/edition2">edition2</a> [being built]
   </td>
 </tr>
 <tr>
