@@ -1,5 +1,4 @@
 #!/bin/bash
 bash download.sh
-bash zip_to_csv.sh
-bash quotes_comma.sh
+python3 remove_cols.py
 bash upload.sh
