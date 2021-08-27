@@ -6,7 +6,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 BUCKET=$1
-FROM=gs://data-science-on-gcp/flights/raw
+FROM=gs://data-science-on-gcp/edition2/flights/raw
 TO=gs://$BUCKET/flights/raw
 
 CMD="gsutil -m cp "
