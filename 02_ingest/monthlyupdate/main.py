@@ -17,7 +17,7 @@
 
 import logging
 from flask import escape
-from ingest_flights import *
+from ingest_flights import ingest
  
 def ingest_flights(request):
    try:
