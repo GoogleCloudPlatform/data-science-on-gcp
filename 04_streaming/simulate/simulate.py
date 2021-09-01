@@ -70,8 +70,8 @@ def notify(publisher, topics, rows, simStartTime, programStart, speedFactor):
 
 if __name__ == '__main__':
    parser = argparse.ArgumentParser(description='Send simulated flight events to Cloud Pub/Sub')
-   parser.add_argument('--startTime', help='Example: 2015-05-01 00:00:00 UTC', required=True)
-   parser.add_argument('--endTime', help='Example: 2015-05-03 00:00:00 UTC', required=True)
+   parser.add_argument('--startTime', help='Example: 2015-01-01 00:00:00 UTC', required=True)
+   parser.add_argument('--endTime', help='Example: 2015-01-04 00:00:00 UTC', required=True)
    parser.add_argument('--project', help='your project id, to create pubsub topic', required=True)
    parser.add_argument('--speedFactor', help='Example: 60 implies 1 hour of data sent to Cloud Pub/Sub in 1 minute', required=True, type=float)
    parser.add_argument('--jitter', help='type of jitter to add: None, uniform, exp  are the three options', default='None')
