@@ -26,7 +26,7 @@ from google.cloud.storage import Blob
 from google.cloud import bigquery
 
 SOURCE = "https://storage.googleapis.com/data-science-on-gcp/edition2/raw"
-# SOURCE = "https://transtats.bts.gov/PREZIP"
+#SOURCE = "https://transtats.bts.gov/PREZIP"
 
 
 def urlopen(url):
@@ -180,5 +180,5 @@ if __name__ == '__main__':
         logging.debug('Ingesting year={} month={}'.format(year_, month_))
         tableref, numrows = ingest(year_, month_, args.bucket)
         logging.info('Success ... ingested {} rows to {}'.format(numrows, tableref))
-    except DataUnavailable as e:
-        logging.info('Try again later: {}'.format(e.message))
+    except Exception as e:
+        logging.info('Try again later: {}'.format(e))

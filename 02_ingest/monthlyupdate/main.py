@@ -35,8 +35,8 @@ def ingest_flights(request):
       if year is None or month is None or len(year) == 0 or len(month) == 0:
          year, month = next_month(bucket)
       logging.debug('Ingesting year={} month={}'.format(year, month))
-      gcsfile = ingest(year, month, bucket)
-      logging.info('Success ... ingested to {}'.format(gcsfile))
-   except DataUnavailable as e:
-      logging.info('Try again later: {}'.format(e.message))
+      tableref, numrows = ingest(year, month, bucket)
+      logging.info('Success ... ingested {} rows to {}'.format(numrows, tableref))
+   except Exception as e:
+      logging.info('Try again later: {}'.format(e))
 
