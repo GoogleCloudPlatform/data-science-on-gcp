@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import os
+import gzip
 import shutil
 import logging
 import os.path
@@ -72,7 +73,15 @@ def zip_to_csv(filename, destdir):
     csvfile = os.path.join(destdir, zip_ref.namelist()[0])
     zip_ref.close()
     logging.info("Extracted {}".format(csvfile))
-    return csvfile
+
+    # now gzip for faster upload to bucket
+    gzipped = csvfile + ".gz"
+    with open(csvfile, 'rb') as ifp:
+        with gzip.open(gzipped, 'wb') as ofp:
+            shutil.copyfileobj(ifp, ofp)
+    logging.info("Compressed into {}".format(gzipped))
+
+    return gzipped
 
 
 def upload(csvfile, bucketname, blobname):
@@ -81,9 +90,10 @@ def upload(csvfile, bucketname, blobname):
     """
     client = storage.Client()
     bucket = client.get_bucket(bucketname)
+    logging.info(bucket)
     blob = Blob(blobname, bucket)
-    logging.debug('TURNED OFF Uploading {} ...'.format(csvfile))
-    # blob.upload_from_filename(csvfile)
+    logging.debug('Uploading {} ...'.format(csvfile))
+    blob.upload_from_filename(csvfile)
     gcslocation = 'gs://{}/{}'.format(bucketname, blobname)
     logging.info('Uploaded {} ...'.format(gcslocation))
     return gcslocation
@@ -126,7 +136,7 @@ def ingest(year, month, bucket):
     try:
         zipfile = download(year, month, tempdir)
         bts_csv = zip_to_csv(zipfile, tempdir)
-        gcsloc = 'flights/raw/{}{}.csv'.format(year, month)
+        gcsloc = 'flights/raw/{}{}.csv.gz'.format(year, month)
         gcsloc = upload(bts_csv, bucket, gcsloc)
         return bqload(gcsloc, year, month)
     finally:
@@ -181,4 +191,4 @@ if __name__ == '__main__':
         tableref, numrows = ingest(year_, month_, args.bucket)
         logging.info('Success ... ingested {} rows to {}'.format(numrows, tableref))
     except Exception as e:
-        logging.info('Try again later: {}'.format(e))
+        logging.exception("Try again later?")
