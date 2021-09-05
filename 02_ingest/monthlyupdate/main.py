@@ -18,7 +18,7 @@ import os
 import logging
 from flask import Flask
 from flask import request, escape
-from ingest_flights import ingest
+from ingest_flights import ingest, next_month
 
 app = Flask(__name__)
 

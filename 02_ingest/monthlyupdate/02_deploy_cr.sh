@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# same as in setup_svc_acct
 NAME=ingest-flights-monthly
 SVC_ACCT=svc-monthly-ingest
 PROJECT_ID=$(gcloud config get-value project)
