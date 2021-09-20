@@ -16,7 +16,7 @@ CSVFILE=gs://${BUCKET}/flights/raw/${YEAR}${MONTH}.csv
 bq --project_id $PROJECT \
    load --time_partitioning_field=FlightDate --time_partitioning_type=MONTH \
    --source_format=CSV --ignore_unknown_values --skip_leading_rows=1 --schema=$SCHEMA \
-   ${PROJECT}:dsongcp.flights_raw $CSVFILE 
+   ${PROJECT}:dsongcp.flights_raw\$${YEAR}${MONTH} $CSVFILE
 
 done
 
