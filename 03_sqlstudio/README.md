@@ -31,7 +31,9 @@ to load the raw data into a BigQuery dataset.
   * bts as the database
   * flights as the table
 * In Cloud Shell, connect to database and run queries
-  * ```gcloud beta sql connect flights --user=postgres```
+  * Connect to the database using one of these two commands (the first if you don't need a SQL proxy, the second if you do -- you'll typically need a SQL proxy if your organization has set up a security rule to allow access only to authorized networks):
+    * ```gcloud sql connect flights --user=postgres```
+    * OR ```gcloud beta sql connect flights --user=postgres```
   * In the prompt, type ```\c bts;```
   * Type in the following query:
   ``` 

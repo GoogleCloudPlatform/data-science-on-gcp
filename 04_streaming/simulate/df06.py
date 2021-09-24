@@ -157,7 +157,6 @@ def run(project, bucket, dataset, region):
                               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
    )
 
-   pipeline.run()
 
 if __name__ == '__main__':
    import argparse

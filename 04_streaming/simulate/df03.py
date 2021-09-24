@@ -15,7 +15,9 @@
 # limitations under the License.
 
 import apache_beam as beam
+import logging
 import csv
+import json
 
 def addtimezone(lat, lon):
    try:
@@ -39,39 +41,43 @@ def as_utc(date, hhmm, tzone):
       else:
          return '' # empty string corresponds to canceled flights
    except ValueError as e:
-      print('{} {} {}'.format(date, hhmm, tzone))
+      logging.exception('{} {} {}'.format(date, hhmm, tzone))
       raise e
 
 def tz_correct(line, airport_timezones):
-   fields = line.split(',')
-   if fields[0] != 'FL_DATE' and len(fields) == 27:
+   fields = json.loads(line)
+   try:
       # convert all times to UTC
-      dep_airport_id = fields[6]
-      arr_airport_id = fields[10]
+      dep_airport_id = fields["ORIGIN_AIRPORT_SEQ_ID"]
+      arr_airport_id = fields["DEST_AIRPORT_SEQ_ID"]
       dep_timezone = airport_timezones[dep_airport_id][2]
       arr_timezone = airport_timezones[arr_airport_id][2]
 
-      for f in [13, 14, 17]: #crsdeptime, deptime, wheelsoff
-         fields[f] = as_utc(fields[0], fields[f], dep_timezone)
-      for f in [18, 20, 21]: #wheelson, crsarrtime, arrtime
-         fields[f] = as_utc(fields[0], fields[f], arr_timezone)
+      for f in ["CRS_DEP_TIME", "DEP_TIME", "WHEELS_OFF"]:
+         fields[f] = as_utc(fields["FL_DATE"], fields[f], dep_timezone)
+      for f in ["WHEELS_ON", "CRS_ARR_TIME", "ARR_TIME"]:
+         fields[f] = as_utc(fields["FL_DATE"], fields[f], arr_timezone)
 
-      yield ','.join(fields)
+      yield json.dumps(fields)
+   except KeyError as e:
+      logging.exception(" Ignoring " + line + " because airport is not known")
+
+
 
 if __name__ == '__main__':
    with beam.Pipeline('DirectRunner') as pipeline:
 
       airports = (pipeline
          | 'airports:read' >> beam.io.ReadFromText('airports.csv.gz')
+         | beam.Filter(lambda line: "United States" in line)
          | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
          | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
       )
 
       flights = (pipeline
-         | 'flights:read' >> beam.io.ReadFromText('201501_part.csv')
+         | 'flights:read' >> beam.io.ReadFromText('flights_sample.json')
          | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
       )
 
       flights | beam.io.textio.WriteToText('all_flights')
 
-      pipeline.run()

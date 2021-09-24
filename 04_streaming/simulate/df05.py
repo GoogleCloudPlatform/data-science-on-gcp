@@ -115,7 +115,5 @@ def run():
          | 'events:out' >> beam.io.textio.WriteToText('all_events')
       )
 
-      pipeline.run()
-
 if __name__ == '__main__':
    run()

@@ -5,8 +5,10 @@ AS
 SELECT
   FlightDate AS FL_DATE,
   Reporting_Airline AS UNIQUE_CARRIER,
-  Origin,
-  Dest,
+  OriginAirportSeqID AS ORIGIN_AIRPORT_SEQ_ID,
+  Origin AS ORIGIN,
+  DestAirportSeqID AS DEST_AIRPORT_SEQ_ID,
+  Dest AS DEST,
   CRSDepTime AS CRS_DEP_TIME,
   DepTime AS DEP_TIME,
   CAST(DepDelay AS FLOAT64) AS DEP_DELAY,

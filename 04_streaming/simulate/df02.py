@@ -33,10 +33,9 @@ if __name__ == '__main__':
 
       airports = (pipeline
          | beam.io.ReadFromText('airports.csv.gz')
+         | beam.Filter(lambda line: "United States" in line)
          | beam.Map(lambda line: next(csv.reader([line])))
          | beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
       )
 
       airports | beam.Map(lambda f: '{},{}'.format(f[0], ','.join(f[1])) )| beam.io.textio.WriteToText('airports_with_tz')
-
-      pipeline.run()

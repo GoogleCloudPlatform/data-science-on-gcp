@@ -91,5 +91,3 @@ if __name__ == '__main__':
       )
 
       flights | beam.io.textio.WriteToText('all_flights')
-
-      pipeline.run()

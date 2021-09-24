@@ -30,5 +30,3 @@ if __name__ == '__main__':
          | beam.Map(lambda airport_data: '{},{}'.format(airport_data[0], ','.join(airport_data[1])) )
          | beam.io.WriteToText('extracted_airports')
       )
-
-      pipeline.run()
