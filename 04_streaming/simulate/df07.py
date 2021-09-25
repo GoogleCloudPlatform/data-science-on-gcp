@@ -110,12 +110,18 @@ def create_event_row(fields):
    return featdict
 
 
-def run(project, bucket):
+def run(project, bucket, region):
    argv = [
       '--project={0}'.format(project),
+      '--job_name=ch04timecorr',
+      '--save_main_session',
       '--staging_location=gs://{0}/flights/staging/'.format(bucket),
       '--temp_location=gs://{0}/flights/temp/'.format(bucket),
-      '--runner=DirectRunner'
+      '--setup_file=./setup.py',
+      '--max_num_workers=8',
+      '--region={}'.format(region),
+      '--autoscaling_algorithm=THROUGHPUT_BASED',
+      '--runner=DataflowRunner'
    ]
    airports_filename = 'gs://{}/flights/airports/airports.csv.gz'.format(bucket)
    flights_output = 'gs://{}/flights/tzcorr/all_flights'.format(bucket)
@@ -124,14 +130,14 @@ def run(project, bucket):
 
       airports = (pipeline
          | 'airports:read' >> beam.io.ReadFromText(airports_filename)
-         | beam.Filter(lambda line: "United States" in line)
+         | 'airports:onlyUSA' >> beam.Filter(lambda line: "United States" in line)
          | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
          | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
       )
 
       flights = (pipeline
          | 'flights:read' >> beam.io.ReadFromBigQuery(
-                 query='SELECT * FROM dsongcp.flights WHERE rand() < 0.001', use_standard_sql=True)
+                 query='SELECT * FROM dsongcp.flights', use_standard_sql=True)
          | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
       )
 
@@ -150,7 +156,7 @@ def run(project, bucket):
          'dsongcp.flights_tzcorr', schema=flights_schema,
          write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED
-       )
+      )
 
       events = flights | beam.FlatMap(get_next_event)
       events_schema = ','.join([flights_schema, 'EVENT_TYPE:string,EVENT_TIME:timestamp,EVENT_DATA:string'])
@@ -170,11 +176,12 @@ def run(project, bucket):
 if __name__ == '__main__':
    import argparse
    parser = argparse.ArgumentParser(description='Run pipeline on the cloud')
-   parser.add_argument('-p', '--project', help='Unique project ID', required=True)
+   parser.add_argument('-p','--project', help='Unique project ID', required=True)
    parser.add_argument('-b','--bucket', help='Bucket where gs://BUCKET/flights/airports/airports.csv.gz exists', required=True)
+   parser.add_argument('-r','--region', help='Region in which to run the Dataflow job. Choose the same region as your bucket.', required=True)
 
    args = vars(parser.parse_args())
 
    print ("Correcting timestamps and writing to BigQuery dataset")
   
-   run(project=args['project'], bucket=args['bucket'])
+   run(project=args['project'], bucket=args['bucket'], region=args['region'])

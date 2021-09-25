@@ -19,6 +19,8 @@ import logging
 import csv
 import json
 
+DATETIME_FORMAT='%Y-%m-%d %H:%M:%S'
+
 def addtimezone(lat, lon):
    try:
       import timezonefinder
@@ -40,7 +42,7 @@ def as_utc(date, hhmm, tzone):
          # can't just parse hhmm because the data contains 2400 and the like ...
          loc_dt += datetime.timedelta(hours=int(hhmm[:2]), minutes=int(hhmm[2:]))
          utc_dt = loc_dt.astimezone(pytz.utc)
-         return utc_dt.strftime('%Y-%m-%d %H:%M:%S'), loc_dt.utcoffset().total_seconds()
+         return utc_dt.strftime(DATETIME_FORMAT), loc_dt.utcoffset().total_seconds()
       else:
          return '', 0 # empty string corresponds to canceled flights
    except ValueError as e:
@@ -50,9 +52,9 @@ def as_utc(date, hhmm, tzone):
 def add_24h_if_before(arrtime, deptime):
    import datetime
    if len(arrtime) > 0 and len(deptime) > 0 and arrtime < deptime:
-      adt = datetime.datetime.strptime(arrtime, '%Y-%m-%d %H:%M:%S')
+      adt = datetime.datetime.strptime(arrtime, DATETIME_FORMAT)
       adt += datetime.timedelta(hours=24)
-      return adt.strftime('%Y-%m-%d %H:%M:%S')
+      return adt.strftime(DATETIME_FORMAT)
    else:
       return arrtime
 
@@ -120,24 +122,6 @@ def run():
          | 'events:out' >> beam.io.textio.WriteToText('all_events')
       )
 
+
 if __name__ == '__main__':
    run()
-
-
-
-if __name__ == '__main__':
-   with beam.Pipeline('DirectRunner') as pipeline:
-
-      airports = (pipeline
-         | 'airports:read' >> beam.io.ReadFromText('airports.csv.gz')
-         | beam.Filter(lambda line: "United States" in line)
-         | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
-         | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
-      )
-
-      flights = (pipeline
-         | 'flights:read' >> beam.io.ReadFromText('flights_sample.json')
-         | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
-      )
-
-      flights | beam.io.textio.WriteToText('all_flights')

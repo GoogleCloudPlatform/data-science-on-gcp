@@ -98,7 +98,7 @@ class CustomCommands(setuptools.Command):
 # so this dependency will not trigger anything to be installed unless a version
 # restriction is specified.
 REQUIRED_PACKAGES = [
-    'timezonefinder==3.0.0',
+    'timezonefinder',
     'pytz'
     ]
 
@@ -109,7 +109,7 @@ setuptools.setup(
     description='Data Science on GCP flights analysis pipelines',
     install_requires=REQUIRED_PACKAGES,
     packages=setuptools.find_packages(),
-    py_modules=['df06'],
+    py_modules=['df07'],
     cmdclass={
         # Command class instantiated and run during pip install scenarios.
         'build': build,
