@@ -14,9 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
 import apache_beam as beam
+import logging
 import csv
+import json
 
 def addtimezone(lat, lon):
    try:
@@ -28,6 +29,9 @@ def addtimezone(lat, lon):
       return (lat, lon, 'TIMEZONE') # header
 
 def as_utc(date, hhmm, tzone):
+   '''
+   Returns date corrected for timezone, and the tzoffset
+   '''
    try:
       if len(hhmm) > 0 and tzone is not None:
          import datetime, pytz
@@ -38,9 +42,9 @@ def as_utc(date, hhmm, tzone):
          utc_dt = loc_dt.astimezone(pytz.utc)
          return utc_dt.strftime('%Y-%m-%d %H:%M:%S'), loc_dt.utcoffset().total_seconds()
       else:
-         return '',0 # empty string corresponds to canceled flights
+         return '', 0 # empty string corresponds to canceled flights
    except ValueError as e:
-      print('{} {} {}'.format(date, hhmm, tzone))
+      logging.exception('{} {} {}'.format(date, hhmm, tzone))
       raise e
 
 def add_24h_if_before(arrtime, deptime):
@@ -53,41 +57,44 @@ def add_24h_if_before(arrtime, deptime):
       return arrtime
 
 def tz_correct(line, airport_timezones):
-   fields = line.split(',')
-   if fields[0] != 'FL_DATE' and len(fields) == 27:
+   fields = json.loads(line)
+   try:
       # convert all times to UTC
-      dep_airport_id = fields[6]
-      arr_airport_id = fields[10]
-      dep_timezone = airport_timezones[dep_airport_id][2] 
+      dep_airport_id = fields["ORIGIN_AIRPORT_SEQ_ID"]
+      arr_airport_id = fields["DEST_AIRPORT_SEQ_ID"]
+      dep_timezone = airport_timezones[dep_airport_id][2]
       arr_timezone = airport_timezones[arr_airport_id][2]
-      
-      for f in [13, 14, 17]: #crsdeptime, deptime, wheelsoff
-         fields[f], deptz = as_utc(fields[0], fields[f], dep_timezone)
-      for f in [18, 20, 21]: #wheelson, crsarrtime, arrtime
-         fields[f], arrtz = as_utc(fields[0], fields[f], arr_timezone)
-      
-      for f in [17, 18, 20, 21]:
-         fields[f] = add_24h_if_before(fields[f], fields[14])
 
-      fields.extend(airport_timezones[dep_airport_id])
-      fields[-1] = str(deptz)
-      fields.extend(airport_timezones[arr_airport_id])
-      fields[-1] = str(arrtz)
+      for f in ["CRS_DEP_TIME", "DEP_TIME", "WHEELS_OFF"]:
+         fields[f], deptz = as_utc(fields["FL_DATE"], fields[f], dep_timezone)
+      for f in ["WHEELS_ON", "CRS_ARR_TIME", "ARR_TIME"]:
+         fields[f], arrtz = as_utc(fields["FL_DATE"], fields[f], arr_timezone)
 
-      yield ','.join(fields)
+      for f in ["WHEELS_OFF", "WHEELS_ON", "CRS_ARR_TIME", "ARR_TIME"]:
+         fields[f] = add_24h_if_before(fields[f], fields["DEP_TIME"])
+
+      fields["DEP_AIRPORT_TZOFFSET"] = deptz
+      fields["ARR_AIRPORT_TZOFFSET"] = arrtz
+      yield json.dumps(fields)
+   except KeyError as e:
+      logging.exception(" Ignoring " + line + " because airport is not known")
+
+
 
 if __name__ == '__main__':
    with beam.Pipeline('DirectRunner') as pipeline:
 
       airports = (pipeline
          | 'airports:read' >> beam.io.ReadFromText('airports.csv.gz')
+         | beam.Filter(lambda line: "United States" in line)
          | 'airports:fields' >> beam.Map(lambda line: next(csv.reader([line])))
          | 'airports:tz' >> beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
       )
 
       flights = (pipeline
-         | 'flights:read' >> beam.io.ReadFromText('201501_part.csv')
+         | 'flights:read' >> beam.io.ReadFromText('flights_sample.json')
          | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
       )
 
       flights | beam.io.textio.WriteToText('all_flights')
+
