@@ -58,8 +58,7 @@ def add_24h_if_before(arrtime, deptime):
    else:
       return arrtime
 
-def tz_correct(line, airport_timezones):
-   fields = json.loads(line)
+def tz_correct(fields, airport_timezones):
    try:
       # convert all times to UTC
       dep_airport_id = fields["ORIGIN_AIRPORT_SEQ_ID"]
@@ -107,6 +106,7 @@ def run():
 
       flights = (pipeline
          | 'flights:read' >> beam.io.ReadFromText('flights_sample.json')
+         | 'flights:parse' >> beam.Map(lambda line: json.loads(line))
          | 'flights:tzcorr' >> beam.FlatMap(tz_correct, beam.pvalue.AsDict(airports))
       )
 

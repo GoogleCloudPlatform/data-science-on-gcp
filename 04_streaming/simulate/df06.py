@@ -59,7 +59,6 @@ def add_24h_if_before(arrtime, deptime):
       return arrtime
 
 def tz_correct(fields, airport_timezones):
-   # fields = json.loads(line) # when reading from BigQuery, we get a dict already
    fields['FL_DATE'] = fields['FL_DATE'].strftime('%Y-%m-%d') # convert to a string so JSON code works
    try:
       # convert all times to UTC
