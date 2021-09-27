@@ -48,7 +48,7 @@ def notify(publisher, topics, rows, simStartTime, programStart, speedFactor):
      tonotify[key] = list()
 
    for row in rows:
-       event, notify_time, event_data = row
+       event_type, notify_time, event_data = row
 
        # how much time should we sleep?
        if compute_sleep_secs(notify_time) > 1:
@@ -62,7 +62,7 @@ def notify(publisher, topics, rows, simStartTime, programStart, speedFactor):
           if to_sleep_secs > 0:
              logging.info('Sleeping {} seconds'.format(to_sleep_secs))
              time.sleep(to_sleep_secs)
-       tonotify[event].append(event_data)
+       tonotify[event_type].append(event_data)
 
    # left-over records; notify again
    publish(publisher, topics, tonotify, notify_time)
@@ -80,7 +80,7 @@ if __name__ == '__main__':
    logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
    args = parser.parse_args()
    bqclient = bq.Client(args.project)
-   dataset =  bqclient.get_dataset( bqclient.dataset('flights') )  # throws exception on failure
+   bqclient.get_table('dsongcp.flights_simevents')  # throws exception on failure
 
    # jitter?
    if args.jitter == 'exp':
@@ -94,20 +94,25 @@ if __name__ == '__main__':
    # run the query to pull simulated events
    querystr = """
 SELECT
-  EVENT,
-  TIMESTAMP_ADD(NOTIFY_TIME, INTERVAL {} SECOND) AS NOTIFY_TIME,
+  EVENT_TYPE,
+  TIMESTAMP_ADD(EVENT_TIME, INTERVAL @jitter SECOND) AS NOTIFY_TIME,
   EVENT_DATA
 FROM
-  flights.simevents
+  dsongcp.flights_simevents
 WHERE
-  NOTIFY_TIME >= TIMESTAMP('{}')
-  AND NOTIFY_TIME < TIMESTAMP('{}')
+  EVENT_TIME >= @startTime
+  AND EVENT_TIME < @endTime
 ORDER BY
-  NOTIFY_TIME ASC
+  EVENT_TIME ASC
 """
-   rows = bqclient.query(querystr.format(jitter,
-                                         args.startTime,
-                                         args.endTime))
+   job_config = bq.QueryJobConfig(
+       query_parameters=[
+           bq.ScalarQueryParameter("jitter", "INT64", jitter),
+           bq.ScalarQueryParameter("startTime", "TIMESTAMP", args.startTime),
+           bq.ScalarQueryParameter("endTime", "TIMESTAMP", args.endTime),
+       ]
+   )
+   rows = bqclient.query(querystr, job_config=job_config)
 
    # create one Pub/Sub notification topic for each type of event
    publisher = pubsub_v1.PublisherClient()
@@ -115,15 +120,15 @@ ORDER BY
    for event_type in ['wheelsoff', 'arrived', 'departed']:
        topics[event_type] = publisher.topic_path(args.project, event_type)
        try:
-         # Getting the new topics from PubSub
-          for topic in publisher.list_topics(request={"project": project_path}):
-                print(topic)
+           publisher.get_topic(topic=topics[event_type])
+           logging.info("Already exists: {}".format(topics[event_type]))
        except:
-         #Creating New topics
-           publisher.create_topic(request={"name": topics[event_type]})
+           logging.info("Creating {}".format(topics[event_type]))
+           publisher.create_topic(name=topics[event_type])
+
 
    # notify about each row in the dataset
    programStartTime = datetime.datetime.utcnow()
    simStartTime = datetime.datetime.strptime(args.startTime, TIME_FORMAT).replace(tzinfo=pytz.UTC)
-   print('Simulation start time is {}'.format(simStartTime))
+   logging.info('Simulation start time is {}'.format(simStartTime))
    notify(publisher, topics, rows, simStartTime, programStartTime, args.speedFactor)
