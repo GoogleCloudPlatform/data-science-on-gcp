@@ -23,8 +23,9 @@ def addtimezone(lat, lon):
    try:
       import timezonefinder
       tf = timezonefinder.TimezoneFinder()
-      return (lat, lon, tf.timezone_at(lng=float(lon), lat=float(lat)))
-      #return (lat, lon, 'America/Los_Angeles') # FIXME
+      lat = float(lat)
+      lon = float(lon)
+      return (lat, lon, tf.timezone_at(lng=lon, lat=lat))
    except ValueError:
       return (lat, lon, 'TIMEZONE') # header
 
@@ -73,7 +74,11 @@ def tz_correct(line, airport_timezones):
       for f in ["WHEELS_OFF", "WHEELS_ON", "CRS_ARR_TIME", "ARR_TIME"]:
          fields[f] = add_24h_if_before(fields[f], fields["DEP_TIME"])
 
+      fields["DEP_AIRPORT_LAT"] = airport_timezones[dep_airport_id][0]
+      fields["DEP_AIRPORT_LON"] = airport_timezones[dep_airport_id][1]
       fields["DEP_AIRPORT_TZOFFSET"] = deptz
+      fields["ARR_AIRPORT_LAT"] = airport_timezones[arr_airport_id][0]
+      fields["ARR_AIRPORT_LON"] = airport_timezones[arr_airport_id][1]
       fields["ARR_AIRPORT_TZOFFSET"] = arrtz
       yield json.dumps(fields)
    except KeyError as e:

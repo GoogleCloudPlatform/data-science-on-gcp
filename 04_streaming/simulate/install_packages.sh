@@ -1,4 +1,8 @@
 #!/bin/bash
-sudo python3 -m pip install --upgrade timezonefinder pytz 'apache-beam[gcp]'
 
-## Note: if this script fails, try running the command above without "sudo"
+python3 -m pip install --upgrade timezonefinder pytz 'apache-beam[gcp]'
+
+echo "If this script fails, please try installing it in a virtualenv"
+echo "virtualenv ~/beam_env"
+echo "source ~/beam_env/bin/activate"
+echo "./install_packages.sh"

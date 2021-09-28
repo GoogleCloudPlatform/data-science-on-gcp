@@ -25,8 +25,9 @@ def addtimezone(lat, lon):
    try:
       import timezonefinder
       tf = timezonefinder.TimezoneFinder()
-      return (lat, lon, tf.timezone_at(lng=float(lon), lat=float(lat)))
-      #return (lat, lon, 'America/Los_Angeles') # FIXME
+      lat = float(lat)
+      lon = float(lon)
+      return (lat, lon, tf.timezone_at(lng=lon, lat=lat))
    except ValueError:
       return (lat, lon, 'TIMEZONE') # header
 
@@ -75,7 +76,11 @@ def tz_correct(fields, airport_timezones):
       for f in ["WHEELS_OFF", "WHEELS_ON", "CRS_ARR_TIME", "ARR_TIME"]:
          fields[f] = add_24h_if_before(fields[f], fields["DEP_TIME"])
 
+      fields["DEP_AIRPORT_LAT"] = airport_timezones[dep_airport_id][0]
+      fields["DEP_AIRPORT_LON"] = airport_timezones[dep_airport_id][1]
       fields["DEP_AIRPORT_TZOFFSET"] = deptz
+      fields["ARR_AIRPORT_LAT"] = airport_timezones[arr_airport_id][0]
+      fields["ARR_AIRPORT_LON"] = airport_timezones[arr_airport_id][1]
       fields["ARR_AIRPORT_TZOFFSET"] = arrtz
       yield (fields)
    except KeyError as e:
@@ -144,7 +149,9 @@ def run(project, bucket):
          'DEST_AIRPORT_SEQ_ID:string,DEST:string,CRS_DEP_TIME:timestamp,DEP_TIME:timestamp',
          'DEP_DELAY:float,TAXI_OUT:float,WHEELS_OFF:timestamp,WHEELS_ON:timestamp,TAXI_IN:float',
          'CRS_ARR_TIME:timestamp,ARR_TIME:timestamp,ARR_DELAY:float,CANCELLED:boolean',
-         'DIVERTED:boolean,DISTANCE:float,DEP_AIRPORT_TZOFFSET:float,ARR_AIRPORT_TZOFFSET:float'])
+         'DIVERTED:boolean,DISTANCE:float',
+         'DEP_AIRPORT_LAT:float,DEP_AIRPORT_LON:float,DEP_AIRPORT_TZOFFSET:float',
+         'ARR_AIRPORT_LAT:float,ARR_AIRPORT_LON:float,ARR_AIRPORT_TZOFFSET:float'])
       flights | 'flights:bqout' >> beam.io.WriteToBigQuery(
          'dsongcp.flights_tzcorr', schema=flights_schema,
          write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,

@@ -19,7 +19,7 @@ import pytz
 import logging
 import argparse
 import datetime
-from google.cloud import pubsub_v1 # Upgrading The Library
+import google.cloud.pubsub_v1 as pubsub # Use v1 of the API
 import google.cloud.bigquery as bq
 
 TIME_FORMAT = '%Y-%m-%d %H:%M:%S %Z'
@@ -115,7 +115,7 @@ ORDER BY
    rows = bqclient.query(querystr, job_config=job_config)
 
    # create one Pub/Sub notification topic for each type of event
-   publisher = pubsub_v1.PublisherClient()
+   publisher = pubsub.PublisherClient()
    topics = {}
    for event_type in ['wheelsoff', 'arrived', 'departed']:
        topics[event_type] = publisher.topic_path(args.project, event_type)
