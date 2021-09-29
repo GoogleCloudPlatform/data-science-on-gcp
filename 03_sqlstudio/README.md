@@ -1,8 +1,14 @@
 # 3. Creating compelling dashboards
 
-### Ingest data if necessary
-If you have not already done so, follow the instructions in Chapter 2's README file
-to load the raw data into a BigQuery dataset.
+### Catch up to Chapter 2
+If you have not already done so, load the raw data into a BigQuery dataset:
+* Go to the Storage section of the GCP web console and create a new bucket
+* Run:
+```
+cd ../02_ingest
+./ingest_from_crsbucket bucketname
+```
+
 
 ### Optional: Load the data into PostgreSQL
 * Navigate to https://console.cloud.google.com/sql
@@ -20,7 +26,7 @@ to load the raw data into a BigQuery dataset.
    gsutil cp create_table.sql \
     gs://cloud-training-demos-ml/flights/ch3/create_table.sql
   ```
-* Create emtpy table using web console:
+* Create empty table using web console:
   * navigate to databases section of Cloud SQL and create a new database called bts
   * navigate to flights instance and select IMPORT
   * Specify location of create_table.sql in your bucket
