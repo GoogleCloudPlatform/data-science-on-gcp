@@ -142,14 +142,16 @@ cd ../03_sqlstudio
         JOIN dsongcp.airports a USING(AIRPORT) 
         WHERE a.AIRPORT_IS_LATEST = 1
     )
-    
+     
     SELECT 
-        AIRPORT, 
+        AIRPORT,
+        CONCAT(LATITUDE, ',', LONGITUDE) AS LOCATION,
         ARRAY_AGG(
             STRUCT(AVG_ARR_DELAY, AVG_DEP_DELAY, NUM_FLIGHTS, END_TIME)
             ORDER BY END_TIME DESC LIMIT 1) AS a
     FROM delays
-    GROUP BY AIRPORT
+    GROUP BY AIRPORT, LONGITUDE, LATITUDE
+
 	```   
 * Follow the steps in the chapter to connect to Data Studio and create a GeoMap.
 * Stop the simulation program in CloudShell.
