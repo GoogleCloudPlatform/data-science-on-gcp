@@ -3,9 +3,9 @@
 ### Catch up to Chapter 2
 If you have not already done so, load the raw data into a BigQuery dataset:
 * Go to the Storage section of the GCP web console and create a new bucket
-* Run:
+* In CloudShell, git clone this repository. Then, run:
 ```
-cd ../02_ingest
+cd data-science-on-gcp/02_ingest
 ./ingest_from_crsbucket bucketname
 ```
 

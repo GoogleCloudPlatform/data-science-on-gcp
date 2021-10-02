@@ -1,0 +1,167 @@
+[
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_SEQ_ID",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_ID",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "DISPLAY_AIRPORT_NAME",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "DISPLAY_AIRPORT_CITY_NAME_FULL",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_WAC_SEQ_ID2",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_WAC",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_COUNTRY_NAME",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_COUNTRY_CODE_ISO",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_STATE_NAME",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_STATE_CODE",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_STATE_FIPS",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "CITY_MARKET_SEQ_ID",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "CITY_MARKET_ID",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "DISPLAY_CITY_MARKET_NAME_FULL",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "CITY_MARKET_WAC_SEQ_ID2",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "CITY_MARKET_WAC",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LAT_DEGREES",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LAT_HEMISPHERE",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LAT_MINUTES",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LAT_SECONDS",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LATITUDE",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LON_DEGREES",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LON_HEMISPHERE",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LON_MINUTES",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LON_SECONDS",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LONGITUDE",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "UTC_LOCAL_TIME_VARIATION",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_START_DATE",
+        "type": "DATE"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_THRU_DATE",
+        "type": "DATE"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_IS_CLOSED",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "AIRPORT_IS_LATEST",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "string_field_32",
+        "type": "STRING"
+      }
+]

@@ -1,10 +1,13 @@
+CREATE OR REPLACE TABLE dsongcp.trainday AS
+
 SELECT
   FL_DATE,
-  IF(ABS(HASH(FL_DATE)) % 100 < 70, 'True', 'False') AS is_train_day
+  IF(ABS(MOD(FARM_FINGERPRINT(CAST(FL_DATE AS STRING)), 100)) < 70,
+     'True', 'False') AS is_train_day
 FROM (
   SELECT
-    UNIQUE(FL_DATE) AS FL_DATE
+    DISTINCT(FL_DATE) AS FL_DATE
   FROM
-    [cloud-training-demos:bts.flights] )
+    dsongcp.flights_tzcorr)
 ORDER BY
   FL_DATE
