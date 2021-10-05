@@ -24,7 +24,10 @@ gcloud dataproc clusters create ch6cluster \
   --master-boot-disk-size 500 --num-workers 2 \
   --worker-machine-type n1-standard-4 \
   --worker-boot-disk-size 500 \
-  --properties dataproc:dataproc.personal-auth.user=$EMAIL \
   --optional-components JUPYTER --project $PROJECT \
   --initialization-actions=$INSTALL \
   --scopes https://www.googleapis.com/auth/cloud-platform
+
+
+
+#  --properties dataproc:dataproc.personal-auth.user=$EMAIL \
