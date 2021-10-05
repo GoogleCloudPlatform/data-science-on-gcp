@@ -46,58 +46,21 @@ In CloudShell:
     ```
 *Note:* Make sure that the compute zone is in the same region as the bucket, otherwise you will incur network egress charges.
 
-### Quantization using Spark SQL
-On your <em>local</em> machine (<b>i.e. not on GCP</b>):
-* Install the <a href="https://cloud.google.com/sdk/downloads">gcloud SDK</a> if you haven't already done so:
-* Create a SSH tunnel to your Dataproc cluster (change the zone appr
-    ```
-    gcloud compute ssh  --zone=us-central1-a  \
-          --ssh-flag="-D 1080" --ssh-flag="-N" --ssh-flag="-n" \
-          ch6cluster-m
-    ```
-* Start a new Chrome browser window (you can leave your other Chrome windows running).
-  Specify a non-existent directory (instead of /tmp/junk) and change the path to Chrome
-  appropriately.
-    ```
-    rm -rf /tmp/junk
-    /usr/bin/chrome \
-      --proxy-server="socks5://localhost:1080" \
-      --host-resolver-rules="MAP * 0.0.0.0 , EXCLUDE localhost" \
-      --user-data-dir=/tmp/junk
-    ```
-    For example, if you are on Mac OS-X, the path to Chrome is:
-    ```
-    /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome 
-    ```
-* In the new Chrome window, navigate to ```http://ch6cluster-m:8080/```, after making sure to allow
-  outgoing http traffic from your local machine to the Dataproc cluster.
+### Interactive development
+* Navigate to the Dataproc section of the GCP web console and click on "Web Interfaces".
 
-* In the new browser window, copy-and-paste cells from <a href="quantization.ipynb">quantization.ipynb</a>.
-  Make sure to set the appropriate values in the cell containing the PROJECT, BUCKET, and REGION.
+* Click on JupyterLab
+
+* In JupyterLab, navigate to /LocalDisks/home/dataproc/data-science-on-gcp
+
+* Open 06_dataproc/quantization.ipynb. Click Run | Clear All Outputs. Then run the cells one by one.
  
 * [optional] make the changes suggested in the notebook to run on the full dataset.  Note that you might have to
   reduce numbers to fit into your quota.
   
-### Bayes Classification using Pig
-* SSH into the master node of the cluster by going to the GCP console
-* Clone the repository:
-    ```
-    git clone https://github.com/GoogleCloudPlatform/data-science-on-gcp
-    ```
-* Change to the directory for this chapter:
-    ```
-    cd data-science-on-gcp/06_dataproc
-    ```
-* Change the bucket name in the Pig script:
-    ```
-    sed 's/cloud-training-demos-ml/YOUR_BUCKET_NAME/g' bayes_final.pig > /tmp/bayes.pig
-    ```
-* Submit Pig job to do Bayes classification (it will take a while to complete):
-    ```
-    gcloud dataproc jobs submit pig \
-         --cluster ch6cluster --file /tmp/bayes.pig
-    ```
-
 ### Delete the cluster
 * Delete the cluster either from the GCP web console or by typing in CloudShell, ```./delete_cluster.sh <YOUR REGION>```
+
+### Serverless workflow
+* Run ./submit_workflow.sh
  
