@@ -10,8 +10,8 @@ The simplest way to get the files you need is to copy it from my bucket:
 
 Alternately, you can ingest from the original source of the data and carry out the cleanup steps as described in the text:
 * Go to the 02_ingest folder of the repo
-* Change the BUCKET variable in upload.sh
-* Execute ./ingest.sh
+* Edit ./ingest.sh to reflect the years you want to process (at minimum, you need 2015)
+* Execute ./ingest.sh bucketname
 
 ### [Optional] Scheduling monthly downloads
 * Go to the 02_ingest/monthlyupdate folder in the repo.

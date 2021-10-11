@@ -1,18 +1,28 @@
 #!/bin/bash
 
-export YEAR=${YEAR:=2015}
+if [ "$#" -ne 1 ]; then
+    echo "Usage: ./ingest.sh  destination-bucket-name"
+    exit
+fi
+
+export BUCKET=$1
 
 # get zip files from BTS, extract csv files
-for MONTH in `seq 1 12`; do
-   bash download.sh $YEAR $MONTH
+for YEAR in `seq 2015 2015`; do
+   for MONTH in `seq 1 12`; do
+      bash download.sh $YEAR $MONTH
+      # upload the raw CSV files to our GCS bucket
+      bash upload.sh $BUCKET
+      rm *.csv
+   done
+   # load the CSV files into BigQuery as string columns
+   bash bqload.sh $BUCKET $YEAR
 done
 
-# upload the raw CSV files to our GCS bucket
-bash upload.sh
-
-# load the CSV files into BigQuery as string columns
-bash bqload.sh
 
 # verify that things worked
 bq query --nouse_legacy_sql \
-  'SELECT DISTINCT month FROM dsongcp.flights_raw ORDER BY CAST(month AS INTEGER) ASC'
+  'SELECT DISTINCT year, month FROM dsongcp.flights_raw ORDER BY year ASC, CAST(month AS INTEGER) ASC'
+
+bq query --nouse_legacy_sql \
+  'SELECT year, month, COUNT(*) AS num_flights FROM dsongcp.flights_raw GROUP BY year, month ORDER BY year ASC, CAST(month AS INTEGER) ASC'
