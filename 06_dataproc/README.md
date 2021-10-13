@@ -62,5 +62,7 @@ In CloudShell:
 * Delete the cluster either from the GCP web console or by typing in CloudShell, ```./delete_cluster.sh <YOUR REGION>```
 
 ### Serverless workflow
-* Run ./submit_workflow.sh
+* Visit https://console.cloud.google.com/networking/networks/list
+* Select the "default" network in your region and allow private Google access
+* Run ./submit_serverless.sh
  

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "$#" -ne 2 ]; then
-   echo "Usage:   ./submit_workflow.sh bucket-name region"
+   echo "Usage:   ./submit_serverless.sh bucket-name region"
    exit
 fi
 

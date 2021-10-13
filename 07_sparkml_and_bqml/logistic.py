@@ -1,113 +1,130 @@
-from __future__ import print_function
+#!/usr/bin/env python3
+
+# Copyright 2021 Google Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from pyspark.mllib.classification import LogisticRegressionWithLBFGS
 from pyspark.mllib.regression import LabeledPoint
 from pyspark.sql import SparkSession
 from pyspark import SparkContext
+import logging
 
-sc = SparkContext('local', 'logistic')
-spark = SparkSession \
-    .builder \
-    .appName("Logistic regression w/ Spark ML") \
-    .getOrCreate()
+def run_logistic(BUCKET):
+    # Create spark session
+    sc = SparkContext('local', 'logistic')
+    spark = SparkSession \
+        .builder \
+        .appName("Logistic regression w/ Spark ML") \
+        .getOrCreate()
 
-BUCKET='BUCKET_NAME'
+    # read dataset
+    traindays = spark.read \
+        .option("header", "true") \
+        .csv('gs://{}/flights/trainday.csv'.format(BUCKET))
+    traindays.createOrReplaceTempView('traindays')
 
-# read dataset
-traindays = spark.read \
-    .option("header", "true") \
-    .csv('gs://{}/flights/trainday.csv'.format(BUCKET))
-traindays.createOrReplaceTempView('traindays')
+    # inputs = 'gs://{}/flights/tzcorr/all_flights-00000-*'.format(BUCKET)  # 1/30th
+    inputs = 'gs://{}/flights/tzcorr/all_flights-*'.format(BUCKET)  # FULL
+    flights = spark.read.json(inputs)
 
-from pyspark.sql.types import StringType, FloatType, StructType, StructField
-
-header = 'FL_DATE,UNIQUE_CARRIER,AIRLINE_ID,CARRIER,FL_NUM,ORIGIN_AIRPORT_ID,ORIGIN_AIRPORT_SEQ_ID,ORIGIN_CITY_MARKET_ID,ORIGIN,DEST_AIRPORT_ID,DEST_AIRPORT_SEQ_ID,DEST_CITY_MARKET_ID,DEST,CRS_DEP_TIME,DEP_TIME,DEP_DELAY,TAXI_OUT,WHEELS_OFF,WHEELS_ON,TAXI_IN,CRS_ARR_TIME,ARR_TIME,ARR_DELAY,CANCELLED,CANCELLATION_CODE,DIVERTED,DISTANCE,DEP_AIRPORT_LAT,DEP_AIRPORT_LON,DEP_AIRPORT_TZOFFSET,ARR_AIRPORT_LAT,ARR_AIRPORT_LON,ARR_AIRPORT_TZOFFSET,EVENT,NOTIFY_TIME'
-
-def get_structfield(colname):
-   if colname in ['ARR_DELAY', 'DEP_DELAY', 'DISTANCE', 'TAXI_OUT']:
-      return StructField(colname, FloatType(), True)
-   else:
-      return StructField(colname, StringType(), True)
-
-schema = StructType([get_structfield(colname) for colname in header.split(',')])
+    # this view can now be queried ...
+    flights.createOrReplaceTempView('flights')
 
 
-#inputs = 'gs://{}/flights/tzcorr/all_flights-00000-*'.format(BUCKET) # 1/30th
-inputs = 'gs://{}/flights/tzcorr/all_flights-*'.format(BUCKET)  # FULL
-flights = spark.read\
-            .schema(schema)\
-            .csv(inputs)
+    # logistic regression
+    trainquery = """
+    SELECT
+      DEP_DELAY, TAXI_OUT, ARR_DELAY, DISTANCE
+    FROM flights f
+    JOIN traindays t
+    ON f.FL_DATE == t.FL_DATE
+    WHERE
+      t.is_train_day == 'True' AND
+      f.CANCELLED == 'False' AND 
+      f.DIVERTED == 'False'
+    """
+    traindata = spark.sql(trainquery)
 
-# this view can now be queried ...
-flights.createOrReplaceTempView('flights')
+    def to_example(fields):
+      return LabeledPoint(\
+                  float(fields['ARR_DELAY'] < 15), #ontime \
+                  [ \
+                      fields['DEP_DELAY'], # DEP_DELAY \
+                      fields['TAXI_OUT'], # TAXI_OUT \
+                      fields['DISTANCE'], # DISTANCE \
+                  ])
+
+    examples = traindata.rdd.map(to_example)
+    lrmodel = LogisticRegressionWithLBFGS.train(examples, intercept=True)
+    lrmodel.setThreshold(0.7)
+
+    # save model
+    MODEL_FILE='gs://{}/flights/sparkmloutput/model'.format(BUCKET)
+    lrmodel.save(sc, MODEL_FILE)
+    logging.info('Logistic regression model saved in {}'.format(MODEL_FILE))
+
+    # evaluate
+    testquery = trainquery.replace("t.is_train_day == 'True'","t.is_train_day == 'False'")
+    testdata = spark.sql(testquery)
+    examples = testdata.rdd.map(to_example)
+
+    # Evaluate model
+    lrmodel.clearThreshold() # so it returns probabilities
+    labelpred = examples.map(lambda p: (p.label, lrmodel.predict(p.features)))
+    logging.info('All flights: {}'.format(eval_model(labelpred)))
 
 
-# logistic regression
-trainquery = """
-SELECT
-  DEP_DELAY, TAXI_OUT, ARR_DELAY, DISTANCE
-FROM flights f
-JOIN traindays t
-ON f.FL_DATE == t.FL_DATE
-WHERE
-  t.is_train_day == 'True' AND
-  f.CANCELLED == '0.00' AND 
-  f.DIVERTED == '0.00'
-"""
-traindata = spark.sql(trainquery)
+    # keep only those examples near the decision threshold
+    labelpred = labelpred.filter(lambda data: data[1] > 0.65 and data[1] < 0.75)
+    logging.info('Flights near decision threshold: {}'.format(eval_model(labelpred)))
 
-def to_example(fields):
-  return LabeledPoint(\
-              float(fields['ARR_DELAY'] < 15), #ontime \
-              [ \
-                  fields['DEP_DELAY'], # DEP_DELAY \
-                  fields['TAXI_OUT'], # TAXI_OUT \
-                  fields['DISTANCE'], # DISTANCE \
-              ])
-
-examples = traindata.rdd.map(to_example)
-lrmodel = LogisticRegressionWithLBFGS.train(examples, intercept=True)
-lrmodel.setThreshold(0.7)
-
-# save model
-MODEL_FILE='gs://' + BUCKET + '/flights/sparkmloutput/model'
-lrmodel.save(sc, MODEL_FILE)
-
-# evaluate
-testquery = trainquery.replace("t.is_train_day == 'True'","t.is_train_day == 'False'")
-testdata = spark.sql(testquery)
-examples = testdata.rdd.map(to_example)
-
-def eval(labelpred):
-    ''' 
-        data = (label, pred)
-            data[0] = label
-            data[1] = pred
+def eval_model(labelpred):
+    '''
+            data = (label, pred)
+                data[0] = label
+                data[1] = pred
     '''
     cancel = labelpred.filter(lambda data: data[1] < 0.7)
     nocancel = labelpred.filter(lambda data: data[1] >= 0.7)
     corr_cancel = cancel.filter(lambda data: data[0] == int(data[1] >= 0.7)).count()
     corr_nocancel = nocancel.filter(lambda data: data[0] == int(data[1] >= 0.7)).count()
-    
+
     cancel_denom = cancel.count()
     nocancel_denom = nocancel.count()
     if cancel_denom == 0:
         cancel_denom = 1
     if nocancel_denom == 0:
         nocancel_denom = 1
-    return {'total_cancel': cancel.count(), \
-            'correct_cancel': float(corr_cancel)/cancel_denom, \
-            'total_noncancel': nocancel.count(), \
-            'correct_noncancel': float(corr_nocancel)/nocancel_denom \
-           }
+    return {
+        'total_cancel': cancel.count(),
+        'correct_cancel': float(corr_cancel)/cancel_denom,
+        'total_noncancel': nocancel.count(),
+        'correct_noncancel': float(corr_nocancel)/nocancel_denom
+    }
 
-# Evaluate model
-lrmodel.clearThreshold() # so it returns probabilities
-labelpred = examples.map(lambda p: (p.label, lrmodel.predict(p.features)))
-print('All flights:')
-print(eval(labelpred))
 
-# keep only those examples near the decision threshold
-print('Flights near decision threshold:')
-labelpred = labelpred.filter(lambda (label, pred): pred > 0.65 and pred < 0.75)
-print(eval(labelpred))
+if __name__ == '__main__':
+    import argparse
 
+    parser = argparse.ArgumentParser(description='Run logistic regression in Spark')
+    parser.add_argument('--bucket', help='GCS bucket to read/write data', required=True)
+    parser.add_argument('--debug', dest='debug', action='store_true', help='Specify if you want debug messages')
+
+    args = parser.parse_args()
+    if args.debug:
+        logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.DEBUG)
+    else:
+        logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
+
+    run_logistic(args.bucket)
