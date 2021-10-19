@@ -48,15 +48,15 @@ If you didn't go through Chapters 2-6, the simplest way to catch up is to copy d
 
 ## This Chapter
 ### Logistic regression using Spark
-* If you haven't already done so, launch a minimal Dataproc cluster:
+* Launch a large Dataproc cluster:
     ```
-    cd ~/data-science-on-gcp/06_dataproc
-    ./create_cluster.sh BUCKET ZONE
+    ./create_large_cluster.sh BUCKET ZONE
     ```
+* If it fails with quota issues, get increased quota. If you can't have more quota, 
+  reduce the number of workers appropriately.
+
 * Submit a Spark job to run the full dataset (change the BUCKET appropriately).
     ```
-    cd ~/data-science-on-gcp/07_sparkml_and_bqml
-    ../06_dataproc/increase_cluster.sh
     ./submit_spark.sh BUCKET logistic.py
     ```
 

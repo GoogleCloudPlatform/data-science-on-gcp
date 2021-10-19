@@ -19,4 +19,4 @@ gcloud beta dataproc batches submit pyspark \
    --region=$REGION \
    gs://${BUCKET}/bayes_on_spark.py \
    -- \
-   --bucket ${BUCKET} --debug
+   --bucket ${BUCKET} # --debug
