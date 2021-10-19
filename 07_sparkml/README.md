@@ -3,22 +3,16 @@
 ### Catch up from previous chapters if necessary
 If you didn't go through Chapters 2-6, the simplest way to catch up is to copy data from my bucket:
 
-#### Catch up from Chapters 2-4
+#### Catch up from Chapters 2-5
 * Go to the 02_ingest folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
 * Go to the 04_streaming folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
-* Create a dataset named "flights" in BigQuery by typing:
-	```
-	bq mk flights
-	```
-* Go to the 05_bqdatalab folder of the repo, run the script to load data into BigQuery:
+* Go to the 05_bqnotebook folder of the repo, run the script to load data into BigQuery:
 	```
 	bash load_into_bq.sh <BUCKET-NAME>
 	```
- 
-#### Catch up from Chapter 5
-* In BigQuery, run this query and save the results as a table named trainday
+* In BigQuery, run this query to create a table named trainday
 	```
-	  #standardsql
+	CREATE OR REPLACE TABLE dsongcp.trainday AS
 	SELECT
 	  FL_DATE,
 	  IF(ABS(MOD(FARM_FINGERPRINT(CAST(FL_DATE AS STRING)), 100)) < 70, 'True', 'False') AS is_train_day
@@ -26,11 +20,10 @@ If you didn't go through Chapters 2-6, the simplest way to catch up is to copy d
 	  SELECT
 	    DISTINCT(FL_DATE) AS FL_DATE
 	  FROM
-	    `flights.tzcorr`)
+	    `dsongcp.flights_tzcorr`)
 	ORDER BY
 	  FL_DATE
 	```
-
 * Export the table as gs://BUCKET/flights/trainday.csv
 
 #### [Optional] Catch up from Chapter 6
