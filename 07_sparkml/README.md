@@ -66,14 +66,4 @@ If you didn't go through Chapters 2-6, the simplest way to catch up is to copy d
 ### Cleanup
 * Delete the cluster either from the GCP web console or by typing in CloudShell, `../06_dataproc/delete_cluster.sh`
 
-### BigQuery ML
-* Start an Cloud AI Platform Notebooks instance (minimal reqs are fine)
-* Start a new notebook and in a cell, download a read-only clone of this repository:
-    ```
-    %bash
-    git clone https://github.com/GoogleCloudPlatform/data-science-on-gcp
-    rm -rf data-science-on-gcp/.git
-    ```
-* Browse to data-science-on-gcp/07_sparkml_and_bqml/flights_bqml.ipynb
-  and run the cells in the notebook
 
