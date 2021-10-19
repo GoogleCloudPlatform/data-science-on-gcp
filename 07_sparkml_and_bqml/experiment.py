@@ -109,7 +109,7 @@ def run_experiment(BUCKET, SCALE_AND_CLIP, WITH_TIME, WITH_ORIGIN):
     # logistic regression
     trainquery = """
     SELECT
-        DEP_DELAY, TAXI_OUT, ARR_DELAY, DISTANCE, DEP_TIME, DEP_AIRPORT_TZOFFSET
+        ORIGIN, DEP_DELAY, TAXI_OUT, ARR_DELAY, DISTANCE, DEP_TIME, DEP_AIRPORT_TZOFFSET
     FROM flights f
     JOIN traindays t
     ON f.FL_DATE == t.FL_DATE
@@ -144,6 +144,7 @@ def run_experiment(BUCKET, SCALE_AND_CLIP, WITH_TIME, WITH_ORIGIN):
         if WITH_TIME:
             features.extend(
                 get_local_hour(fields['DEP_TIME'], fields['DEP_AIRPORT_TZOFFSET']))
+
         if WITH_ORIGIN:
             features.extend(fields['origin_onehot'])
 
@@ -153,12 +154,12 @@ def run_experiment(BUCKET, SCALE_AND_CLIP, WITH_TIME, WITH_ORIGIN):
 
     def add_origin(df, trained_model=None):
         from pyspark.ml.feature import OneHotEncoder, StringIndexer
-        if not index_model:
+        if not trained_model:
             indexer = StringIndexer(inputCol='ORIGIN', outputCol='origin_index')
             trained_model = indexer.fit(df)
         indexed = trained_model.transform(df)
         encoder = OneHotEncoder(inputCol='origin_index', outputCol='origin_onehot')
-        return trained_model, encoder.transform(indexed)
+        return trained_model, encoder.fit(indexed).transform(indexed)
 
     if WITH_ORIGIN:
         index_model, traindata = add_origin(traindata)
