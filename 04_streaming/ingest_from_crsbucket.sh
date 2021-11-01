@@ -6,7 +6,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 BUCKET=$1
-FROM=gs://data-science-on-gcp/edition2/flights/tzcorr/
+FROM=gs://data-science-on-gcp/edition2/flights/tzcorr
 TO=gs://$BUCKET/flights/tzcorr
 
 #sharded files
