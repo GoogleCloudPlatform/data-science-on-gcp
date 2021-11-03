@@ -21,7 +21,7 @@ $CMD
 # load tzcorr into BigQuery
 PROJECT=$(gcloud config get-value project)
 bq --project_id $PROJECT \
-  load --source_format=JSON --autodetect ${PROJECT}:dsongcp.flights_tzcorr \
+  load --source_format=NEWLINE_DELIMITED_JSON --autodetect ${PROJECT}:dsongcp.flights_tzcorr \
   ${TO}/all_flights-*
 
 
