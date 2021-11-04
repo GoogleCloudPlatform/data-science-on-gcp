@@ -38,7 +38,12 @@ to make sure the code works.
     ```
     python3 model.py  --bucket <bucket-name> --develop
     ```
-* Run a Vertex AI Pipeline on the full data set:
+* Run a Vertex AI Pipeline on the small sample (will take about ten minutes):
+    ```
+    python3 train_on_vertexai.py --project <project> --bucket <bucket-name>
+    ```
+* Edit train_on_vertexai.py and remove the line that has --develop. Then, run
+on the full dataset using:
     ```
     python3 train_on_vertexai.py --project <project> --bucket <bucket-name>
     ```

@@ -54,7 +54,7 @@ if __name__ == '__main__':
     # Set up training and deployment infra
     TF_VERSION = '2-' + tf.__version__[2:3]
     TRAIN_IMAGE = "us-docker.pkg.dev/vertex-ai/training/tf-gpu.{}:latest".format(TF_VERSION)
-    DEPLOY_IMAGE = "us-docker.pkg.dev/vertex-ai/prediction/tf-cpu.{}:latest".format(TF_VERSION)
+    DEPLOY_IMAGE = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.{}:latest".format(TF_VERSION)
 
     # create dataset
     # FIXME: Need to specify data_split column
