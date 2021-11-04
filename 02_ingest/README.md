@@ -5,6 +5,10 @@
 
 ### Populate your bucket with the data you will need for the book
 The simplest way to get the files you need is to copy it from my bucket:
+* Open CloudShell and git clone this repo:
+    ```
+    git clone https://github.com/GoogleCloudPlatform/data-science-on-gcp
+    ```
 * Go to the 02_ingest folder of the repo
 * Run the program ./ingest_from_crsbucket.sh and specify your bucket name.
 

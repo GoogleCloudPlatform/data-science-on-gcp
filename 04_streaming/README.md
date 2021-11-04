@@ -2,7 +2,11 @@
 
 ### Catch up until Chapter 3 if necessary
 * Go to the Storage section of the GCP web console and create a new bucket
-* In CloudShell, git clone this repository. Then, run:
+* Open CloudShell and git clone this repo:
+    ```
+    git clone https://github.com/GoogleCloudPlatform/data-science-on-gcp
+    ```
+* Then, run:
 ```
 cd data-science-on-gcp/02_ingest
 ./ingest_from_crsbucket bucketname

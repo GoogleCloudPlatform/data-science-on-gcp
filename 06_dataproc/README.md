@@ -4,6 +4,10 @@ To repeat the steps in this chapter, follow these steps.
 
 ### Catch up from Chapters 2-5
 If you didn't go through Chapters 2-5, the simplest way to catch up is to copy data from my bucket:
+* Open CloudShell and git clone this repo:
+    ```
+    git clone https://github.com/GoogleCloudPlatform/data-science-on-gcp
+    ```
 * Go to the 02_ingest folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
 * Go to the 04_streaming folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
 * Go to the 05_bqnotebook folder of the repo, run the script to load data into BigQuery:
