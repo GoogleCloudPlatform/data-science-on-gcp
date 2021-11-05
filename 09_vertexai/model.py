@@ -36,7 +36,7 @@ def features_and_labels(features):
 
 
 def read_dataset(pattern, batch_size, mode=tf.estimator.ModeKeys.TRAIN, truncate=None):
-    dataset = tf.data.experimental.make_csv_dataset(pattern, batch_size)
+    dataset = tf.data.experimental.make_csv_dataset(pattern, batch_size, num_epochs=1)
     dataset = dataset.map(features_and_labels)
     if mode == tf.estimator.ModeKeys.TRAIN:
         dataset = dataset.shuffle(batch_size * 10)
@@ -142,10 +142,10 @@ def train_and_evaluate(train_data_pattern, eval_data_pattern, export_dir, output
         epochs = 2
         num_eval_examples = eval_batch_size * 10
     else:
-        eval_batch_size = 10000
+        eval_batch_size = 100
         steps_per_epoch = NUM_EXAMPLES // train_batch_size
         epochs = 10
-        num_eval_examples = None  # full dataset
+        num_eval_examples = eval_batch_size * 100
 
     train_dataset = read_dataset(train_data_pattern, train_batch_size)
     eval_dataset = read_dataset(eval_data_pattern, eval_batch_size, tf.estimator.ModeKeys.EVAL, num_eval_examples)
@@ -169,7 +169,13 @@ def train_and_evaluate(train_data_pattern, eval_data_pattern, export_dir, output
 
     # write out final metric
     final_rmse = history.history['val_rmse'][-1]
-    logging.info("Final RMSE = {}".format(final_rmse))
+    logging.info("Validation RMSE on {} samples = {}".format(num_eval_examples, final_rmse))
+
+    if not DEVELOP_MODE:
+        logging.info("Evaluating over full evaluation dataset")
+        eval_dataset = read_dataset(eval_data_pattern, eval_batch_size, tf.estimator.ModeKeys.EVAL, None)
+        final_metrics = model.evaluate(eval_dataset)
+        logging.info("Final metrics on full evaluation dataset = {}".format(final_metrics))
 
     # hpt = hypertune.HyperTune()
     # hpt.report_hyperparameter_tuning_metric(hyperparameter_metric_tag='rmse', metric_value=final_rmse, global_step=1)
@@ -226,7 +232,7 @@ if __name__ == '__main__':
     # parse args
     args = parser.parse_args()
     arguments = args.__dict__
-    logging.basicConfig(level=logging.INFO)
+    logging.getLogger().setLevel(logging.INFO)
 
     # set appropriate output directory
     BUCKET = arguments['bucket']

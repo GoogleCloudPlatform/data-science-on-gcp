@@ -42,7 +42,7 @@ if __name__ == '__main__':
     )
 
     # parse args
-    logging.basicConfig(level=logging.INFO)
+    logging.getLogger().setLevel(logging.INFO)
     args = parser.parse_args().__dict__
     BUCKET = args['bucket']
     PROJECT = args['project']
