@@ -85,10 +85,18 @@ if __name__ == '__main__':
         accelerator_count=1,
     )
 
-    # create an endpoint
-    endpoint = aiplatform.Endpoint.create(
-        display_name=ENDPOINT_NAME, project=PROJECT, location=REGION,
+    # create endpoint if it doesn't already exist
+    endpoints = aiplatform.Endpoint.list(
+        filter='display_name="{}"'.format(ENDPOINT_NAME),
+        order_by='create_time desc',
+        project=PROJECT, location=REGION,
     )
+    if len(endpoints) > 0:
+        endpoint = endpoints[0]
+    else:
+        endpoint = aiplatform.Endpoint.create(
+            display_name=ENDPOINT_NAME, project=PROJECT, location=REGION,
+        )
 
     # deploy
     model.deploy(
