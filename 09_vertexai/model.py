@@ -134,7 +134,7 @@ def rmse(y_true, y_pred):
     return tf.sqrt(tf.reduce_mean(tf.square(y_pred - y_true)))
 
 
-def train_and_evaluate(train_data_pattern, eval_data_pattern, export_dir, output_dir):
+def train_and_evaluate(train_data_pattern, eval_data_pattern, test_data_pattern, export_dir, output_dir):
     train_batch_size = TRAIN_BATCH_SIZE
     if DEVELOP_MODE:
         eval_batch_size = 100
@@ -171,11 +171,11 @@ def train_and_evaluate(train_data_pattern, eval_data_pattern, export_dir, output
     final_rmse = history.history['val_rmse'][-1]
     logging.info("Validation RMSE on {} samples = {}".format(num_eval_examples, final_rmse))
 
-    if not DEVELOP_MODE:
-        logging.info("Evaluating over full evaluation dataset")
-        eval_dataset = read_dataset(eval_data_pattern, eval_batch_size, tf.estimator.ModeKeys.EVAL, None)
-        final_metrics = model.evaluate(eval_dataset)
-        logging.info("Final metrics on full evaluation dataset = {}".format(final_metrics))
+    if not DEVELOP_MODE and test_data_pattern is not None:
+        logging.info("Evaluating over full test dataset")
+        test_dataset = read_dataset(test_data_pattern, eval_batch_size, tf.estimator.ModeKeys.EVAL, None)
+        final_metrics = model.evaluate(test_dataset)
+        logging.info("Final metrics on full test dataset = {}".format(final_metrics))
 
     # hpt = hypertune.HyperTune()
     # hpt.report_hyperparameter_tuning_metric(hyperparameter_metric_tag='rmse', metric_value=final_rmse, global_step=1)
@@ -242,6 +242,7 @@ if __name__ == '__main__':
     OUTPUT_MODEL_DIR = os.getenv("AIP_MODEL_DIR")  # or None
     TRAIN_DATA_PATTERN = os.getenv("AIP_TRAINING_DATA_URI")
     EVAL_DATA_PATTERN = os.getenv("AIP_VALIDATION_DATA_URI")
+    TEST_DATA_PATTERN = os.getenv("AIP_TEST_DATA_URI")
     if not OUTPUT_MODEL_DIR:
         OUTPUT_MODEL_DIR = os.path.join(OUTPUT_DIR,
                                         'export/flights_{}'.format(time.strftime("%Y%m%d-%H%M%S")))
@@ -261,4 +262,4 @@ if __name__ == '__main__':
     DEVELOP_MODE = arguments['develop']
 
     # run
-    train_and_evaluate(TRAIN_DATA_PATTERN, EVAL_DATA_PATTERN, OUTPUT_MODEL_DIR, OUTPUT_DIR)
+    train_and_evaluate(TRAIN_DATA_PATTERN, EVAL_DATA_PATTERN, TEST_DATA_PATTERN, OUTPUT_MODEL_DIR, OUTPUT_DIR)
