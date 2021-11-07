@@ -126,7 +126,7 @@ def wide_and_deep_classifier(inputs, linear_feature_columns, dnn_feature_columns
     model = tf.keras.Model(inputs, output)
     model.compile(optimizer='adam',
                   loss='binary_crossentropy',
-                  metrics=['accuracy', rmse])
+                  metrics=['accuracy', rmse, tf.keras.metrics.AUC()])
     return model
 
 
