@@ -40,6 +40,12 @@ if __name__ == '__main__':
         help='Project to be billed',
         required=True
     )
+    parser.add_argument(
+        '--develop',
+        help='Train on a small subset in development',
+        dest='develop',
+        action='store_true')
+    parser.set_defaults(develop=False)
 
     # parse args
     logging.getLogger().setLevel(logging.INFO)
@@ -47,6 +53,7 @@ if __name__ == '__main__':
     BUCKET = args['bucket']
     PROJECT = args['project']
     REGION = args['region']
+    DEVELOP_MODE = args['develop']
     TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
 
     aiplatform.init(project=PROJECT, location=REGION, staging_bucket='gs://{}'.format(BUCKET))
@@ -69,22 +76,26 @@ if __name__ == '__main__':
         script_path="model.py",
         container_uri=TRAIN_IMAGE,
         requirements=[],  # any extra Python packages
-        model_serving_container_image_uri=DEPLOY_IMAGE,
+        model_serving_container_image_uri=DEPLOY_IMAGE
     )
+
+    model_args = [
+            '--bucket', BUCKET,
+    ]
+    if DEVELOP_MODE:
+        model_args += ['--develop']
     model = job.run(
         dataset=dataset,
         # See https://googleapis.dev/python/aiplatform/latest/aiplatform.html#
         predefined_split_column_name='data_split',
         model_display_name=MODEL_DISPLAY_NAME,
-        args=[
-            '--bucket', BUCKET,
-            '--develop'
-        ],
+        args=model_args,
         replica_count=1,
         machine_type='n1-standard-4',
         # See https://cloud.google.com/vertex-ai/docs/general/locations#accelerators
         accelerator_type=aip.AcceleratorType.NVIDIA_TESLA_T4.name,
-        accelerator_count=1
+        accelerator_count=1,
+        sync=DEVELOP_MODE
     )
 
     # create endpoint if it doesn't already exist
@@ -98,6 +109,7 @@ if __name__ == '__main__':
     else:
         endpoint = aiplatform.Endpoint.create(
             display_name=ENDPOINT_NAME, project=PROJECT, location=REGION,
+            sync=DEVELOP_MODE
         )
 
     # deploy
@@ -106,8 +118,11 @@ if __name__ == '__main__':
         traffic_split={"0": 100},
         machine_type='n1-standard-2',
         min_replica_count=1,
-        max_replica_count=1
+        max_replica_count=1,
+        sync=DEVELOP_MODE
     )
-    model.wait()
+
+    if DEVELOP_MODE:
+        model.wait()
 
 
