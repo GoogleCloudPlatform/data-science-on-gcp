@@ -47,9 +47,9 @@ on the full dataset using:
     ```
     python3 train_on_vertexai.py --project <project> --bucket <bucket-name>
     ```
-* Get the model to predict:
+* Try calling the model:
     ```
-    ./call_predict.py --project=$(gcloud config get-value core/project)
+    ./call_predict.sh
     ```
 * Get the model to predict, but also provide a reason:
     ```

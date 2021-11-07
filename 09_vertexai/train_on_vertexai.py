@@ -57,10 +57,9 @@ if __name__ == '__main__':
     DEPLOY_IMAGE = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.{}:latest".format(TF_VERSION)
 
     # create dataset
-    # FIXME: Need to specify data_split column
     dataset = aiplatform.TabularDataset.create(
         display_name='data-{}'.format(ENDPOINT_NAME),
-        gcs_source=['gs://{}/ch9/data/all*'.format(BUCKET)]
+        gcs_source=['gs://{}/ch9/data/all.csv'.format(BUCKET)]
     )
 
     # train
@@ -73,6 +72,9 @@ if __name__ == '__main__':
         model_serving_container_image_uri=DEPLOY_IMAGE,
     )
     model = job.run(
+        dataset=dataset,
+        # See https://googleapis.dev/python/aiplatform/latest/aiplatform.html#
+        predefined_split_column_name='data_split',
         model_display_name=MODEL_DISPLAY_NAME,
         args=[
             '--bucket', BUCKET,
@@ -82,7 +84,7 @@ if __name__ == '__main__':
         machine_type='n1-standard-4',
         # See https://cloud.google.com/vertex-ai/docs/general/locations#accelerators
         accelerator_type=aip.AcceleratorType.NVIDIA_TESLA_T4.name,
-        accelerator_count=1,
+        accelerator_count=1
     )
 
     # create endpoint if it doesn't already exist
@@ -92,7 +94,7 @@ if __name__ == '__main__':
         project=PROJECT, location=REGION,
     )
     if len(endpoints) > 0:
-        endpoint = endpoints[0]
+        endpoint = endpoints[0]  # most recently created
     else:
         endpoint = aiplatform.Endpoint.create(
             display_name=ENDPOINT_NAME, project=PROJECT, location=REGION,
