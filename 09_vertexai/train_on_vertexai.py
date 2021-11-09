@@ -74,6 +74,9 @@ def train_automl_model(data_set, timestamp, develop_mode):
         model_display_name=model_display_name,
         budget_milli_node_hours=(300 if develop_mode else 2000),
         disable_early_stopping=False,
+        export_evaluated_data_items=True,
+        export_evaluated_data_items_bigquery_destination_uri='{}:dsongcp.ch9_automl_evaluated'.format(PROJECT),
+        export_evaluated_data_items_override_destination=True,
         sync=develop_mode
     )
     return job, model
