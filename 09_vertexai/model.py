@@ -14,7 +14,8 @@
 
 import argparse
 import logging
-import os, json, math, shutil, time
+import os, time
+import hypertune
 import numpy as np
 import tensorflow as tf
 
@@ -144,41 +145,54 @@ def train_and_evaluate(train_data_pattern, eval_data_pattern, test_data_pattern,
     else:
         eval_batch_size = 100
         steps_per_epoch = NUM_EXAMPLES // train_batch_size
-        epochs = 10
+        epochs = NUM_EPOCHS
         num_eval_examples = eval_batch_size * 100
 
     train_dataset = read_dataset(train_data_pattern, train_batch_size)
     eval_dataset = read_dataset(eval_data_pattern, eval_batch_size, tf.estimator.ModeKeys.EVAL, num_eval_examples)
 
+    # checkpoint
     checkpoint_path = '{}/checkpoints/flights.cpt'.format(output_dir)
     logging.info("Checkpointing to {}".format(checkpoint_path))
     cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
                                                      save_weights_only=True,
                                                      verbose=1)
 
+    # call back to write out hyperparameter tuning metric
+    METRIC = 'val_rmse'
+    hpt = hypertune.HyperTune()
+
+    class HpCallback(tf.keras.callbacks.Callback):
+        def on_epoch_end(self, epoch, logs=None):
+            if logs and METRIC in logs:
+                logging.info("Epoch {}: {} = {}".format(epoch, METRIC, logs[METRIC]))
+                hpt.report_hyperparameter_tuning_metric(hyperparameter_metric_tag=METRIC,
+                                                        metric_value=logs[METRIC],
+                                                        global_step=epoch)
+
+    # train the model
     model = create_model()
     history = model.fit(train_dataset,
                         validation_data=eval_dataset,
                         epochs=epochs,
                         steps_per_epoch=steps_per_epoch,
-                        callbacks=[cp_callback])
+                        callbacks=[cp_callback, HpCallback()])
 
     # export
     logging.info('Exporting to {}'.format(export_dir))
     tf.saved_model.save(model, export_dir)
 
     # write out final metric
-    final_rmse = history.history['val_rmse'][-1]
-    logging.info("Validation RMSE on {} samples = {}".format(num_eval_examples, final_rmse))
+    final_rmse = history.history[METRIC][-1]
+    logging.info("Validation metric {} on {} samples = {}".format(METRIC, num_eval_examples, final_rmse))
 
-    if not DEVELOP_MODE and test_data_pattern is not None:
+    if (not DEVELOP_MODE) and (test_data_pattern is not None) and (not SKIP_FULL_EVAL):
         logging.info("Evaluating over full test dataset")
         test_dataset = read_dataset(test_data_pattern, eval_batch_size, tf.estimator.ModeKeys.EVAL, None)
         final_metrics = model.evaluate(test_dataset)
         logging.info("Final metrics on full test dataset = {}".format(final_metrics))
-
-    # hpt = hypertune.HyperTune()
-    # hpt.report_hyperparameter_tuning_metric(hyperparameter_metric_tag='rmse', metric_value=final_rmse, global_step=1)
+    else:
+        logging.info("Skipping evaluation on full test dataset")
 
 
 if __name__ == '__main__':
@@ -194,6 +208,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--num_examples',
         help='Number of examples per epoch. Get order of magnitude correct.',
+        type=int,
         default=5000000
     )
 
@@ -217,6 +232,12 @@ if __name__ == '__main__':
         default=3
     )
     parser.add_argument(
+        '--num_epochs',
+        help='Number of epochs (used only if --develop is not set)',
+        type=int,
+        default=10
+    )
+    parser.add_argument(
         '--dnn_hidden_units',
         help='Architecture of DNN part of wide-and-deep network',
         default='64,32'
@@ -227,7 +248,12 @@ if __name__ == '__main__':
         dest='develop',
         action='store_true')
     parser.set_defaults(develop=False)
-
+    parser.add_argument(
+        '--skip_full_eval',
+        help='Just train. Do not evaluate on test dataset.',
+        dest='skip_full_eval',
+        action='store_true')
+    parser.set_defaults(skip_full_eval=False)
 
     # parse args
     args = parser.parse_args()
@@ -257,9 +283,14 @@ if __name__ == '__main__':
     # other global parameters
     NBUCKETS = arguments['nbuckets']
     NEMBEDS = arguments['nembeds']
+    NUM_EXAMPLES = arguments['num_examples']
+    NUM_EPOCHS = arguments['num_epochs']
     TRAIN_BATCH_SIZE = arguments['train_batch_size']
     DNN_HIDDEN_UNITS = arguments['dnn_hidden_units']
     DEVELOP_MODE = arguments['develop']
+    SKIP_FULL_EVAL = arguments['skip_full_eval']
 
     # run
     train_and_evaluate(TRAIN_DATA_PATTERN, EVAL_DATA_PATTERN, TEST_DATA_PATTERN, OUTPUT_MODEL_DIR, OUTPUT_DIR)
+
+    logging.info("Done")

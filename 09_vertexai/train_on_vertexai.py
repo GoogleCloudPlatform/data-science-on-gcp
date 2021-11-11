@@ -19,6 +19,7 @@ import tensorflow as tf
 
 from google.cloud import aiplatform
 from google.cloud.aiplatform import gapic as aip
+from google.cloud.aiplatform import hyperparameter_tuning as hpt
 
 ENDPOINT_NAME = 'flights'
 
@@ -35,7 +36,7 @@ def train_custom_model(data_set, timestamp, develop_mode):
         display_name='train-{}'.format(model_display_name),
         script_path="model.py",
         container_uri=train_image,
-        requirements=[],  # any extra Python packages
+        requirements=['cloudml-hypertune'],  # any extra Python packages
         model_serving_container_image_uri=deploy_image
     )
     model_args = [
@@ -56,7 +57,7 @@ def train_custom_model(data_set, timestamp, develop_mode):
         accelerator_count=1,
         sync=develop_mode
     )
-    return job, model
+    return model
 
 
 def train_automl_model(data_set, timestamp, develop_mode):
@@ -79,7 +80,55 @@ def train_automl_model(data_set, timestamp, develop_mode):
         export_evaluated_data_items_override_destination=True,
         sync=develop_mode
     )
-    return job, model
+    return model
+
+
+def do_hyperparameter_tuning(data_set, timestamp, develop_mode):
+    # Vertex AI services require regional API endpoints.
+    client_options = {"api_endpoint": '{}-aiplatform.googleapis.com'.format(REGION)}
+    client = aiplatform.gapic.JobServiceClient(client_options=client_options)
+    tf_version = '2-' + tf.__version__[2:3]
+    train_image = "us-docker.pkg.dev/vertex-ai/training/tf-gpu.{}:latest".format(tf_version)
+    deploy_image = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.{}:latest".format(tf_version)
+
+    # a single trial job
+    model_display_name = '{}-{}'.format(ENDPOINT_NAME, timestamp)
+    trial_job = aiplatform.CustomJob.from_local_script(
+        display_name='train-{}'.format(model_display_name),
+        script_path="model.py",
+        container_uri=train_image,
+        args=[
+            '--bucket', BUCKET,
+            '--skip_full_eval',  # no need to evaluate on test data set
+            '--num_epochs', '10',
+            '--num_examples', '500000'  # 1/10 actual size to finish faster
+        ],
+        requirements=['cloudml-hypertune'],  # any extra Python packages
+        replica_count=1,
+        machine_type='n1-standard-4',
+        # See https://cloud.google.com/vertex-ai/docs/general/locations#accelerators
+        accelerator_type=aip.AcceleratorType.NVIDIA_TESLA_T4.name,
+        accelerator_count=1,
+    )
+
+    # the tuning job
+    hparam_job = aiplatform.HyperparameterTuningJob(
+        # See https://googleapis.dev/python/aiplatform/latest/aiplatform.html#
+        display_name='hparam-{}'.format(model_display_name),
+        custom_job=trial_job,
+        metric_spec={'val_rmse': 'minimize'},
+        parameter_spec={
+            "train_batch_size": hpt.IntegerParameterSpec(min=16, max=256, scale='log'),
+            "nbuckets": hpt.IntegerParameterSpec(min=5, max=10, scale='linear'),
+            "dnn_hidden_units": hpt.CategoricalParameterSpec(values=["64,16", "64,16,4", "64,64,64,8", "256,64,16"])
+        },
+        max_trial_count=4 if develop_mode else 10,
+        parallel_trial_count=2,
+        search_algorithm=None,  # Bayesian
+    )
+
+    hparam_job.run(sync=develop_mode)
+
 
 
 def main():
@@ -93,9 +142,12 @@ def main():
 
     # train
     if AUTOML:
-        job, model = train_automl_model(data_set, TIMESTAMP, DEVELOP_MODE)
+        model = train_automl_model(data_set, TIMESTAMP, DEVELOP_MODE)
+    elif HPARAM:
+        do_hyperparameter_tuning(data_set, TIMESTAMP, DEVELOP_MODE)
+        return  # don't deploy
     else:
-        job, model = train_custom_model(data_set, TIMESTAMP, DEVELOP_MODE)
+        model = train_custom_model(data_set, TIMESTAMP, DEVELOP_MODE)
 
     # create endpoint if it doesn't already exist
     endpoints = aiplatform.Endpoint.list(
@@ -155,6 +207,12 @@ if __name__ == '__main__':
         dest='automl',
         action='store_true')
     parser.set_defaults(automl=False)
+    parser.add_argument(
+        '--hparam',
+        help='Optimize hyperparameters? Ignored if --automl is set.',
+        dest='hparam',
+        action='store_true')
+    parser.set_defaults(hparam=False)
 
     # parse args
     logging.getLogger().setLevel(logging.INFO)
@@ -164,6 +222,7 @@ if __name__ == '__main__':
     REGION = args['region']
     DEVELOP_MODE = args['develop']
     AUTOML = args['automl']
+    HPARAM = args['hparam']
     TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
 
     main()
