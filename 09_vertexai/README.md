@@ -25,14 +25,14 @@ git clone https://github.com/GoogleCloudPlatform/data-science-on-gcp
 ```
 * In the navigation pane on the left, navigate to data-science-on-gcp/09_vertexai
 * Open the notebook flights_model_tf2.ipynb and run the cells.  Note that the notebook has
-DEVELOP_MODE=True and so it will take on a very, very small amount of data. This is just
+DEVELOP_MODE=True and so it will train on a very, very small amount of data. This is just
 to make sure the code works.
 
 
 #### From CloudShell
 * Install the aiplatform library
     ```
-    pip3 install google-cloud-aiplatform
+    pip3 install google-cloud-aiplatform cloudml-hypertune
     ```
 * Try running the standalone model file on a small sample:
     ```
@@ -60,7 +60,7 @@ to make sure the code works.
     ```
 * [Optional] Hyperparameter tune the custom model using Vertex AI:
     ```
-    python3 train_on_vertexai.py --project <project> --bucket <bucket-name> --hparam
+    python3 train_on_vertexai.py --project <project> --bucket <bucket-name> --num_hparam_trials 10
     ```
 * Get the model to predict, but also provide a reason:
     ```
@@ -69,6 +69,12 @@ to make sure the code works.
 
 
 ## Articles
+Some of the content in this chapter was published as blog posts (links below).
+
+To try out the code in the articles without going through the chapter, copy the necessary data to your bucket:
+  ```gsutil cp gs://data-science-on-gcp/edition2/ch9/data/all.csv gs://BUCKET/ch9/data/all.csv```
+
+Now you will be able to run model.py and train_on_vertexai.py as in the directions above.
 
 * [Giving Vertex AI, the New Unified ML Platform on Google Cloud, a Spin](https://towardsdatascience.com/giving-vertex-ai-the-new-unified-ml-platform-on-google-cloud-a-spin-35e0f3852f25):
 Why do we need it, how good is the code-free ML training, really, and what does all this mean for data science jobs?
@@ -76,3 +82,5 @@ Why do we need it, how good is the code-free ML training, really, and what does 
 * [Developing and Deploying a Machine Learning Model on Vertex AI using Python](https://medium.com/@lakshmanok/developing-and-deploying-a-machine-learning-model-on-vertex-ai-using-python-865b535814f8): Write training pipelines that will make your MLOps team happy
 * [How to build an MLOps pipeline for hyperparameter tuning in Vertex AI](https://lakshmanok.medium.com/how-to-build-an-mlops-pipeline-for-hyperparameter-tuning-in-vertex-ai-45cc2faf4ff5):
 Best practices to set up your model and orchestrator for hyperparameter tuning
+
+

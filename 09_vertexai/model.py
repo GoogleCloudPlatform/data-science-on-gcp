@@ -25,8 +25,8 @@ TF_VERSION = '2-' + tf.__version__[2:3]  # needed to choose container
 DEVELOP_MODE = True
 NUM_EXAMPLES = 5000 * 1000  # doesn't need to be precise but get order of magnitude right.
 
-NBUCKETS = 5
-NEMBEDS = 3
+NUM_BUCKETS = 5
+NUM_EMBEDS = 3
 TRAIN_BATCH_SIZE = 64
 DNN_HIDDEN_UNITS = '64,32'
 
@@ -75,8 +75,8 @@ def create_model():
         for colname in sparse.keys()
     })
 
-    latbuckets = np.linspace(20.0, 50.0, NBUCKETS).tolist()  # USA
-    lonbuckets = np.linspace(-120.0, -70.0, NBUCKETS).tolist()  # USA
+    latbuckets = np.linspace(20.0, 50.0, NUM_BUCKETS).tolist()  # USA
+    lonbuckets = np.linspace(-120.0, -70.0, NUM_BUCKETS).tolist()  # USA
     disc = {}
     disc.update({
         'd_{}'.format(key): tf.feature_column.bucketized_column(real[key], latbuckets)
@@ -89,14 +89,14 @@ def create_model():
 
     # cross columns that make sense in combination
     sparse['dep_loc'] = tf.feature_column.crossed_column(
-        [disc['d_dep_airport_lat'], disc['d_dep_airport_lon']], NBUCKETS * NBUCKETS)
+        [disc['d_dep_airport_lat'], disc['d_dep_airport_lon']], NUM_BUCKETS * NUM_BUCKETS)
     sparse['arr_loc'] = tf.feature_column.crossed_column(
-        [disc['d_arr_airport_lat'], disc['d_arr_airport_lon']], NBUCKETS * NBUCKETS)
-    sparse['dep_arr'] = tf.feature_column.crossed_column([sparse['dep_loc'], sparse['arr_loc']], NBUCKETS ** 4)
+        [disc['d_arr_airport_lat'], disc['d_arr_airport_lon']], NUM_BUCKETS * NUM_BUCKETS)
+    sparse['dep_arr'] = tf.feature_column.crossed_column([sparse['dep_loc'], sparse['arr_loc']], NUM_BUCKETS ** 4)
 
     # embed all the sparse columns
     embed = {
-        'embed_{}'.format(colname): tf.feature_column.embedding_column(col, NEMBEDS)
+        'embed_{}'.format(colname): tf.feature_column.embedding_column(col, NUM_EMBEDS)
         for colname, col in sparse.items()
     }
     real.update(embed)
@@ -256,19 +256,36 @@ if __name__ == '__main__':
     parser.set_defaults(skip_full_eval=False)
 
     # parse args
-    args = parser.parse_args()
-    arguments = args.__dict__
+    args = parser.parse_args().__dict__
     logging.getLogger().setLevel(logging.INFO)
 
-    # set appropriate output directory
-    BUCKET = arguments['bucket']
-
-    # Change the output model directory etc. only if not already set by Vertex AI
-    OUTPUT_DIR = 'gs://{}/ch9/trained_model'.format(BUCKET)
+    # The Vertex AI contract. If not running in Vertex AI Training, these will be None
     OUTPUT_MODEL_DIR = os.getenv("AIP_MODEL_DIR")  # or None
     TRAIN_DATA_PATTERN = os.getenv("AIP_TRAINING_DATA_URI")
     EVAL_DATA_PATTERN = os.getenv("AIP_VALIDATION_DATA_URI")
     TEST_DATA_PATTERN = os.getenv("AIP_TEST_DATA_URI")
+
+    # set top-level output directory for checkpoints, etc.
+    BUCKET = args['bucket']
+    OUTPUT_DIR = 'gs://{}/ch9/train_output'.format(BUCKET)
+    # During hyperparameter tuning, we need to make sure different trials don't clobber each other
+    # https://cloud.google.com/ai-platform/training/docs/distributed-training-details#tf-config-format
+    # This doesn't exist in Vertex AI
+    # OUTPUT_DIR = os.path.join(
+    #     OUTPUT_DIR,
+    #     json.loads(
+    #         os.environ.get('TF_CONFIG', '{}')
+    #     ).get('task', {}).get('trial', '')
+    # )
+    if OUTPUT_MODEL_DIR:
+        # convert gs://ai-analytics-solutions-dsongcp2/aiplatform-custom-job-2021-11-13-22:22:46.175/1/model/
+        # to gs://ai-analytics-solutions-dsongcp2/aiplatform-custom-job-2021-11-13-22:22:46.175/1
+        OUTPUT_DIR = os.path.join(
+            os.path.dirname(OUTPUT_MODEL_DIR if OUTPUT_MODEL_DIR[-1] != '/' else OUTPUT_MODEL_DIR[:-1]),
+            'train_output')
+    logging.info('Writing checkpoints and other outputs to {}'.format(OUTPUT_DIR))
+
+    # Set default values for the contract variables in case we are not running in Vertex AI Training
     if not OUTPUT_MODEL_DIR:
         OUTPUT_MODEL_DIR = os.path.join(OUTPUT_DIR,
                                         'export/flights_{}'.format(time.strftime("%Y%m%d-%H%M%S")))
@@ -276,19 +293,19 @@ if __name__ == '__main__':
         TRAIN_DATA_PATTERN = 'gs://{}/ch9/data/train*'.format(BUCKET)
     if not EVAL_DATA_PATTERN:
         EVAL_DATA_PATTERN = 'gs://{}/ch9/data/eval*'.format(BUCKET)
-
+    logging.info('Exporting trained model to {}'.format(OUTPUT_MODEL_DIR))
     logging.info("Reading training data from {}".format(TRAIN_DATA_PATTERN))
     logging.info('Writing trained model to {}'.format(OUTPUT_MODEL_DIR))
 
     # other global parameters
-    NBUCKETS = arguments['nbuckets']
-    NEMBEDS = arguments['nembeds']
-    NUM_EXAMPLES = arguments['num_examples']
-    NUM_EPOCHS = arguments['num_epochs']
-    TRAIN_BATCH_SIZE = arguments['train_batch_size']
-    DNN_HIDDEN_UNITS = arguments['dnn_hidden_units']
-    DEVELOP_MODE = arguments['develop']
-    SKIP_FULL_EVAL = arguments['skip_full_eval']
+    NUM_BUCKETS = args['nbuckets']
+    NUM_EMBEDS = args['nembeds']
+    NUM_EXAMPLES = args['num_examples']
+    NUM_EPOCHS = args['num_epochs']
+    TRAIN_BATCH_SIZE = args['train_batch_size']
+    DNN_HIDDEN_UNITS = args['dnn_hidden_units']
+    DEVELOP_MODE = args['develop']
+    SKIP_FULL_EVAL = args['skip_full_eval']
 
     # run
     train_and_evaluate(TRAIN_DATA_PATTERN, EVAL_DATA_PATTERN, TEST_DATA_PATTERN, OUTPUT_MODEL_DIR, OUTPUT_DIR)

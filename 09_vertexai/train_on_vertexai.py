@@ -122,12 +122,12 @@ def do_hyperparameter_tuning(data_set, timestamp, develop_mode):
             "nbuckets": hpt.IntegerParameterSpec(min=5, max=10, scale='linear'),
             "dnn_hidden_units": hpt.CategoricalParameterSpec(values=["64,16", "64,16,4", "64,64,64,8", "256,64,16"])
         },
-        max_trial_count=2 if develop_mode else 10,
+        max_trial_count=2 if develop_mode else NUM_HPARAM_TRIALS,
         parallel_trial_count=2,
         search_algorithm=None,  # Bayesian
     )
 
-    hparam_job.run(sync=develop_mode)
+    hparam_job.run(sync=True)  # has to finish before we can get trials.
 
     # get the parameters corresponding to the best trial
     best = sorted(hparam_job.trials, key=lambda x: x.final_measurement.metrics[0].value)[0]
@@ -135,7 +135,13 @@ def do_hyperparameter_tuning(data_set, timestamp, develop_mode):
     best_params = []
     for param in best.parameters:
         best_params.append('--{}'.format(param.parameter_id))
-        best_params.append(param.value)
+
+        if param.parameter_id in ["train_batch_size", "nbuckets"]:
+            # integer parameters
+            best_params.append(int(round(param.value)))
+        else:
+            # string or float parameters
+            best_params.append(param.value)
 
     # run the best trial to completion
     logging.info('Launching full training job with {}'.format(best_params))
@@ -154,7 +160,7 @@ def main():
     # train
     if AUTOML:
         model = train_automl_model(data_set, TIMESTAMP, DEVELOP_MODE)
-    elif HPARAM:
+    elif NUM_HPARAM_TRIALS > 1:
         model = do_hyperparameter_tuning(data_set, TIMESTAMP, DEVELOP_MODE)
     else:
         model = train_custom_model(data_set, TIMESTAMP, DEVELOP_MODE)
@@ -218,11 +224,10 @@ if __name__ == '__main__':
         action='store_true')
     parser.set_defaults(automl=False)
     parser.add_argument(
-        '--hparam',
-        help='Optimize hyperparameters? Ignored if --automl is set.',
-        dest='hparam',
-        action='store_true')
-    parser.set_defaults(hparam=False)
+        '--num_hparam_trials',
+        help='Number of hyperparameter trials. 0/1 means no hyperparam. Ignored if --automl is set.',
+        type=int,
+        default=0)
 
     # parse args
     logging.getLogger().setLevel(logging.INFO)
@@ -232,7 +237,7 @@ if __name__ == '__main__':
     REGION = args['region']
     DEVELOP_MODE = args['develop']
     AUTOML = args['automl']
-    HPARAM = args['hparam']
+    NUM_HPARAM_TRIALS = args['num_hparam_trials']
     TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
 
     main()
