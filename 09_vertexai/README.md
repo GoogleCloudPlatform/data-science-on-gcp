@@ -54,7 +54,25 @@ to make sure the code works.
     ```
     python3 call_predict.py
     ```
+* [Optional] Train an AutoML model using Vertex AI:
+    ```
+    python3 train_on_vertexai.py --project <project> --bucket <bucket-name> --automl
+    ```
+* [Optional] Hyperparameter tune the custom model using Vertex AI:
+    ```
+    python3 train_on_vertexai.py --project <project> --bucket <bucket-name> --hparam
+    ```
 * Get the model to predict, but also provide a reason:
     ```
     ./call_predict_reason.py --project=$(gcloud config get-value core/project)
     ```
+
+
+## Articles
+
+* [Giving Vertex AI, the New Unified ML Platform on Google Cloud, a Spin](https://towardsdatascience.com/giving-vertex-ai-the-new-unified-ml-platform-on-google-cloud-a-spin-35e0f3852f25):
+Why do we need it, how good is the code-free ML training, really, and what does all this mean for data science jobs?
+* [How to Deploy a TensorFlow Model to Vertex AI](https://towardsdatascience.com/how-to-deploy-a-tensorflow-model-to-vertex-ai-87d9ae1df56): Working with saved models and endpoints in Vertex AI
+* [Developing and Deploying a Machine Learning Model on Vertex AI using Python](https://medium.com/@lakshmanok/developing-and-deploying-a-machine-learning-model-on-vertex-ai-using-python-865b535814f8): Write training pipelines that will make your MLOps team happy
+* [How to build an MLOps pipeline for hyperparameter tuning in Vertex AI](https://lakshmanok.medium.com/how-to-build-an-mlops-pipeline-for-hyperparameter-tuning-in-vertex-ai-45cc2faf4ff5):
+Best practices to set up your model and orchestrator for hyperparameter tuning

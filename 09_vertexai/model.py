@@ -217,13 +217,13 @@ if __name__ == '__main__':
         '--train_batch_size',
         help='Number of examples to compute gradient on',
         type=int,
-        default=64
+        default=256  # originally 64
     )
     parser.add_argument(
         '--nbuckets',
         help='Number of bins into which to discretize lats and lons',
         type=int,
-        default=5
+        default=10  # originally 5
     )
     parser.add_argument(
         '--nembeds',
@@ -240,7 +240,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--dnn_hidden_units',
         help='Architecture of DNN part of wide-and-deep network',
-        default='64,32'
+        default='64,64,64,8'  # originally '64,32'
     )
     parser.add_argument(
         '--develop',

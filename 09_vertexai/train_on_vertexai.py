@@ -24,7 +24,7 @@ from google.cloud.aiplatform import hyperparameter_tuning as hpt
 ENDPOINT_NAME = 'flights'
 
 
-def train_custom_model(data_set, timestamp, develop_mode):
+def train_custom_model(data_set, timestamp, develop_mode, extra_args=None):
     # Set up training and deployment infra
     tf_version = '2-' + tf.__version__[2:3]
     train_image = "us-docker.pkg.dev/vertex-ai/training/tf-gpu.{}:latest".format(tf_version)
@@ -44,6 +44,9 @@ def train_custom_model(data_set, timestamp, develop_mode):
     ]
     if develop_mode:
         model_args += ['--develop']
+    if extra_args:
+        model_args += extra_args
+
     model = job.run(
         dataset=data_set,
         # See https://googleapis.dev/python/aiplatform/latest/aiplatform.html#
@@ -85,11 +88,8 @@ def train_automl_model(data_set, timestamp, develop_mode):
 
 def do_hyperparameter_tuning(data_set, timestamp, develop_mode):
     # Vertex AI services require regional API endpoints.
-    client_options = {"api_endpoint": '{}-aiplatform.googleapis.com'.format(REGION)}
-    client = aiplatform.gapic.JobServiceClient(client_options=client_options)
     tf_version = '2-' + tf.__version__[2:3]
     train_image = "us-docker.pkg.dev/vertex-ai/training/tf-gpu.{}:latest".format(tf_version)
-    deploy_image = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.{}:latest".format(tf_version)
 
     # a single trial job
     model_display_name = '{}-{}'.format(ENDPOINT_NAME, timestamp)
@@ -122,13 +122,24 @@ def do_hyperparameter_tuning(data_set, timestamp, develop_mode):
             "nbuckets": hpt.IntegerParameterSpec(min=5, max=10, scale='linear'),
             "dnn_hidden_units": hpt.CategoricalParameterSpec(values=["64,16", "64,16,4", "64,64,64,8", "256,64,16"])
         },
-        max_trial_count=4 if develop_mode else 10,
+        max_trial_count=2 if develop_mode else 10,
         parallel_trial_count=2,
         search_algorithm=None,  # Bayesian
     )
 
     hparam_job.run(sync=develop_mode)
 
+    # get the parameters corresponding to the best trial
+    best = sorted(hparam_job.trials, key=lambda x: x.final_measurement.metrics[0].value)[0]
+    logging.info('Best trial: {}'.format(best))
+    best_params = []
+    for param in best.parameters:
+        best_params.append('--{}'.format(param.parameter_id))
+        best_params.append(param.value)
+
+    # run the best trial to completion
+    logging.info('Launching full training job with {}'.format(best_params))
+    return train_custom_model(data_set, timestamp, develop_mode, extra_args=best_params)
 
 
 def main():
@@ -144,8 +155,7 @@ def main():
     if AUTOML:
         model = train_automl_model(data_set, TIMESTAMP, DEVELOP_MODE)
     elif HPARAM:
-        do_hyperparameter_tuning(data_set, TIMESTAMP, DEVELOP_MODE)
-        return  # don't deploy
+        model = do_hyperparameter_tuning(data_set, TIMESTAMP, DEVELOP_MODE)
     else:
         model = train_custom_model(data_set, TIMESTAMP, DEVELOP_MODE)
 
