@@ -137,8 +137,9 @@ def do_hyperparameter_tuning(data_set, timestamp, develop_mode):
         best_params.append('--{}'.format(param.parameter_id))
 
         if param.parameter_id in ["train_batch_size", "nbuckets"]:
-            # integer parameters
-            best_params.append(int(round(param.value)))
+            # hparam returns 10.0 even though it's an integer param. so round it.
+            # but CustomTrainingJob makes integer args into floats. so make it a string
+            best_params.append(str(int(round(param.value))))
         else:
             # string or float parameters
             best_params.append(param.value)
