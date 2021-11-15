@@ -72,7 +72,9 @@ to make sure the code works.
 Some of the content in this chapter was published as blog posts (links below).
 
 To try out the code in the articles without going through the chapter, copy the necessary data to your bucket:
-  ```gsutil cp gs://data-science-on-gcp/edition2/ch9/data/all.csv gs://BUCKET/ch9/data/all.csv```
+  ```
+  gsutil cp gs://data-science-on-gcp/edition2/ch9/data/all.csv gs://BUCKET/ch9/data/all.csv
+```
 
 Now you will be able to run model.py and train_on_vertexai.py as in the directions above.
 

@@ -1,0 +1,45 @@
+{
+  "inputs": {
+    "dep_delay": {
+      "inputTensorName": "dep_delay"
+    },
+    "taxi_out": {
+      "inputTensorName": "taxi_out"
+    },
+    "distance": {
+      "inputTensorName": "distance"
+    },
+    "dep_hour": {
+      "inputTensorName": "dep_hour"
+    },
+    "is_weekday": {
+      "inputTensorName": "is_weekday"
+    },
+    "dep_airport_lat": {
+      "inputTensorName": "dep_airport_lat"
+    },
+    "dep_airport_lon": {
+      "inputTensorName": "dep_airport_lon"
+    },
+    "arr_airport_lat": {
+      "inputTensorName": "arr_airport_lat"
+    },
+    "arr_airport_lon": {
+      "inputTensorName": "arr_airport_lon"
+    },
+    "carrier": {
+      "inputTensorName": "carrier"
+    },
+    "origin": {
+      "inputTensorName": "origin"
+    },
+    "dest": {
+      "inputTensorName": "dest"
+    }
+  },
+  "outputs": {
+    "pred": {
+      "outputTensorName": "pred"
+    }
+  }
+}
