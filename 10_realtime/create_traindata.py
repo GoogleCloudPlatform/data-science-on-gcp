@@ -17,6 +17,7 @@
 import apache_beam as beam
 import datetime as dt
 import logging
+import os
 import numpy as np
 import farmhash  # pip install pyfarmhash
 import json
@@ -29,7 +30,7 @@ CSV_HEADER = 'ontime,dep_delay,taxi_out,distance,origin,dest,dep_hour,is_weekday
 
 def get_data_split(col):
     # Use farm fingerprint just like in BigQuery
-    x = np.abs(np.uint64(farmhash.fingerprint64(col)).astype('int64') % 100)
+    x = np.abs(np.uint64(farmhash.fingerprint64(str(col))).astype('int64') % 100)
     if x < 60:
         data_split = 'TRAIN'
     elif x < 80:
@@ -70,8 +71,9 @@ def create_features_and_label(event):
             'data_split': get_data_split(event['FL_DATE'])
         }
         yield model_input
-    except:
+    except Exception as e:
         # if any key is not present, don't use for training
+        logging.warning('Ignoring {} because: {}'.format(event, e), exc_info=True)
         pass
 
 
@@ -116,7 +118,7 @@ def run(project, bucket, region, input):
         argv = [
             '--runner=DirectRunner'
         ]
-        flights_output = '/tmp/all_data'
+        flights_output = '/tmp/'
     else:
         logging.info('Running in the cloud on full dataset input={}'.format(input))
         argv = [
@@ -131,7 +133,7 @@ def run(project, bucket, region, input):
             '--region={}'.format(region),
             '--runner=DataflowRunner'
         ]
-        flights_output = 'gs://{}/flights/ch10/all_data'.format(bucket)
+        flights_output = 'gs://{}/flights/ch10/'.format(bucket)
 
     with beam.Pipeline(argv=argv) as pipeline:
 
@@ -168,11 +170,17 @@ def run(project, bucket, region, input):
                 | 'events_to_features' >> beam.FlatMap(create_features_and_label)
         )
 
-        # write it out
-        (features
-         | 'to_string' >> beam.Map(lambda f: ','.join([str(x) for x in f.values()]))
-         | 'flights_to_gcs' >> beam.io.textio.WriteToText(flights_output, file_name_suffix='.csv', header=CSV_HEADER)
-         )
+        # write out
+        for split in ['ALL', 'TRAIN', 'VALIDATE', 'TEST']:
+            feats = features
+            if split != 'ALL':
+                feats = feats | 'only_{}'.format(split) >> beam.Filter(lambda f: f['data_split'] == split)
+            (
+                feats
+                | '{}_to_string'.format(split) >> beam.Map(lambda f: ','.join([str(x) for x in f.values()]))
+                | '{}_to_gcs'.format(split) >> beam.io.textio.WriteToText(os.path.join(flights_output, split.lower()),
+                                                                          file_name_suffix='.csv', header=CSV_HEADER)
+            )
 
 
 if __name__ == '__main__':

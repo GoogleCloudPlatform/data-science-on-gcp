@@ -34,7 +34,11 @@ If you didn't go through Chapters 2-9, the simplest way to catch up is to copy d
    ```
 * Run a Dataflow pipeline to create the full training dataset:
   ```
-    python3 create_traindata.py --input bigquery --project <PROJECT> --bucket <BUCKET> --region us-central1
+    python3 create_traindata.py --input bigquery --project <PROJECT> --bucket <BUCKET> --region <REGION>
+  ```
+* Train ML model on the enriched dataset:
+  ```
+  python3 train_on_vertexai.py --project <PROJECT> --bucket <BUCKET> --region <REGION>
   ```
 * [Optional] Run a local pipeline to invoke predictions:
     ```
