@@ -153,9 +153,11 @@ def main():
     aiplatform.init(project=PROJECT, location=REGION, staging_bucket='gs://{}'.format(BUCKET))
 
     # create data set
+    all_files = tf.io.gfile.glob('gs://{}/ch9/data/all*.csv'.format(BUCKET))
+    logging.info("Training on {}".format(all_files))
     data_set = aiplatform.TabularDataset.create(
         display_name='data-{}'.format(ENDPOINT_NAME),
-        gcs_source=tf.io.gfile.glob('gs://{}/ch9/data/all*.csv'.format(BUCKET))
+        gcs_source=all_files
     )
 
     # train
