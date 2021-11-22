@@ -85,7 +85,7 @@ def run(project, bucket, region, input):
         logging.info('Running in the cloud on full dataset input={}'.format(input))
         argv = [
             '--project={0}'.format(project),
-            '--job_name=ch10traindata',
+            '--job_name=ch10predictions',
             '--save_main_session',
             '--staging_location=gs://{0}/flights/staging/'.format(bucket),
             '--temp_location=gs://{0}/flights/temp/'.format(bucket),

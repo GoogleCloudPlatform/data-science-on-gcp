@@ -39,6 +39,13 @@ def get_data_split(col):
     return data_split
 
 
+def to_datetime(event_time):
+    if isinstance(event_time, str):
+        # In BigQuery, this is a datetime.datetime.  In JSON, it's a string
+        event_time = dt.datetime.strptime(event_time, DATETIME_FORMAT)
+    return event_time
+
+
 def create_features_and_label(event):
     try:
         model_input = {
@@ -49,8 +56,8 @@ def create_features_and_label(event):
             # 'distance': event['DISTANCE'],  # distance is not in wheelsoff
             'origin': event['ORIGIN'],
             'dest': event['DEST'],
-            'dep_hour': dt.datetime.strptime(event['DEP_TIME'], DATETIME_FORMAT).hour,
-            'is_weekday': 1.0 if dt.datetime.strptime(event['DEP_TIME'], DATETIME_FORMAT).isoweekday() < 6 else 0.0,
+            'dep_hour': to_datetime(event['DEP_TIME']).hour,
+            'is_weekday': 1.0 if to_datetime(event['DEP_TIME']).isoweekday() < 6 else 0.0,
             'carrier': event['UNIQUE_CARRIER'],
             'dep_airport_lat': event['DEP_AIRPORT_LAT'],
             'dep_airport_lon': event['DEP_AIRPORT_LON'],
@@ -64,6 +71,7 @@ def create_features_and_label(event):
         }
         yield model_input
     except:
+        # if any key is not present, don't use for training
         pass
 
 
@@ -86,12 +94,20 @@ def add_stats(element, window=beam.DoFn.WindowParam):
     # it only if it has just arrived (if it is within 5 minutes of the start of the window)
     emit_end_time = window.start + WINDOW_EVERY
     for event in events:
-        event_time = dt.datetime.strptime(event['WHEELS_OFF'], DATETIME_FORMAT).timestamp()
+        event_time = to_datetime(event['WHEELS_OFF']).timestamp()
         if event_time < emit_end_time:
             event_plus_stat = event.copy()
             event_plus_stat['AVG_DEP_DELAY'] = avg_dep_delay
             event_plus_stat['AVG_TAXI_OUT'] = avg_taxiout
             yield event_plus_stat
+
+
+def assign_timestamp(event):
+    try:
+        event_time = to_datetime(event['WHEELS_OFF'])
+        yield beam.window.TimestampedValue(event, event_time.timestamp())
+    except:
+        pass
 
 
 def run(project, bucket, region, input):
@@ -140,17 +156,11 @@ def run(project, bucket, region, input):
             return
 
         # events are assigned the time at which predictions will have to be made -- the wheels off time
-        all_events = (
-                events
-                | 'assign_time' >> beam.Map(lambda event:
-                                            beam.window.TimestampedValue(event,
-                                                                         dt.datetime.strptime(event['WHEELS_OFF'],
-                                                                                              DATETIME_FORMAT).timestamp()))
-        )
+        events = events | 'assign_time' >> beam.FlatMap(assign_timestamp)
 
         # compute stats by airport, and add to events
         features = (
-                all_events
+                events
                 | 'window' >> beam.WindowInto(beam.window.SlidingWindows(WINDOW_DURATION, WINDOW_EVERY))
                 | 'by_airport' >> beam.Map(lambda x: (x['ORIGIN'], x))
                 | 'group_by_airport' >> beam.GroupByKey()
