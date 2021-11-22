@@ -1,4 +1,3 @@
-.*
-*.pyc
-quickstart
-*.zip
+model.py
+train_on_vertexai.py
+*.egg-info

@@ -133,7 +133,7 @@ def run(project, bucket, region, input):
             '--region={}'.format(region),
             '--runner=DataflowRunner'
         ]
-        flights_output = 'gs://{}/flights/ch10/'.format(bucket)
+        flights_output = 'gs://{}/ch10/data/'.format(bucket)
 
     with beam.Pipeline(argv=argv) as pipeline:
 

@@ -155,7 +155,7 @@ def main():
     # create data set
     data_set = aiplatform.TabularDataset.create(
         display_name='data-{}'.format(ENDPOINT_NAME),
-        gcs_source=['gs://{}/ch9/data/all.csv'.format(BUCKET)]
+        gcs_source=tf.io.gfile.glob('gs://{}/ch9/data/all*.csv'.format(BUCKET))
     )
 
     # train
