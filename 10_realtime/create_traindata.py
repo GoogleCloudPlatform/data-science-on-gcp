@@ -47,6 +47,23 @@ def to_datetime(event_time):
     return event_time
 
 
+def approx_miles_between(lat1, lon1, lat2, lon2):
+    # convert to radians
+    lat1 = float(lat1) * np.pi / 180.0
+    lat2 = float(lat2) * np.pi / 180.0
+    lon1 = float(lon1) * np.pi / 180.0
+    lon2 = float(lon2) * np.pi / 180.0
+
+    # apply Haversine formula
+    d_lat = lat2 - lat1
+    d_lon = lon2 - lon1
+    a = (pow(np.sin(d_lat / 2), 2) +
+         pow(np.sin(d_lon / 2), 2) *
+         np.cos(lat1) * np.cos(lat2));
+    c = 2 * np.arcsin(np.sqrt(a))
+    return 6371 * c * 0.621371  # miles
+
+
 def create_features_and_label(event):
     try:
         model_input = {
@@ -54,7 +71,9 @@ def create_features_and_label(event):
             # same as in ch9
             'dep_delay': event['DEP_DELAY'],
             'taxi_out': event['TAXI_OUT'],
-            # 'distance': event['DISTANCE'],  # distance is not in wheelsoff
+            # distance is not in wheelsoff
+            'distance': approx_miles_between(event['DEP_AIRPORT_LAT'], event['DEP_AIRPORT_LON'],
+                                             event['ARR_AIRPORT_LAT'], event['ARR_AIRPORT_LON']),
             'origin': event['ORIGIN'],
             'dest': event['DEST'],
             'dep_hour': to_datetime(event['DEP_TIME']).hour,
@@ -129,7 +148,7 @@ def run(project, bucket, region, input):
             '--temp_location=gs://{0}/flights/temp/'.format(bucket),
             '--setup_file=./setup.py',
             '--autoscaling_algorithm=THROUGHPUT_BASED',
-            '--max_num_workers=8',
+            '--max_num_workers=20',
             '--region={}'.format(region),
             '--runner=DataflowRunner'
         ]
@@ -179,7 +198,9 @@ def run(project, bucket, region, input):
                 feats
                 | '{}_to_string'.format(split) >> beam.Map(lambda f: ','.join([str(x) for x in f.values()]))
                 | '{}_to_gcs'.format(split) >> beam.io.textio.WriteToText(os.path.join(flights_output, split.lower()),
-                                                                          file_name_suffix='.csv', header=CSV_HEADER)
+                                                                          file_name_suffix='.csv', header=CSV_HEADER,
+                                                                          # workaround b/207384805
+                                                                          num_shards=1)
             )
 
 
