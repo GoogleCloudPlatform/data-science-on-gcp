@@ -17,8 +17,49 @@
 import apache_beam as beam
 import logging
 import json
+import os
 
-from .flightstxf import flights_transforms as ftxf
+from flightstxf import flights_transforms as ftxf
+
+
+CSV_HEADER = 'dep_delay,taxi_out,distance,origin,dest,dep_hour,is_weekday,carrier,dep_airport_lat,dep_airport_lon,arr_airport_lat,arr_airport_lon,avg_dep_delay,avg_taxi_out,prob_ontime'
+
+
+class FlightsModelInvoker(beam.DoFn):
+    def __init__(self):
+        self._endpoint = None
+
+    # https://beam.apache.org/releases/pydoc/2.24.0/apache_beam.utils.shared.html
+    # def __init__(self, shared_handle):
+    #   # self._shared_handle = shared_handle
+    #    self._endpoint = None
+
+    def process(self, input_data):
+        def create_endpoint():
+            from google.cloud import aiplatform
+            endpoint_name = 'flights-ch10'
+            endpoints = aiplatform.Endpoint.list(
+                filter='display_name="{}"'.format(endpoint_name),
+                order_by='create_time desc'
+            )
+            if len(endpoints) == 0:
+                raise EnvironmentError("No endpoint named {}".format(endpoint_name))
+            logging.info("Found endpoint {}".format(endpoints[0]))
+            return endpoints[0]
+
+        # get already created endpoint if possible
+        # endpoint = self._shared_handle.acquire(create_endpoint)
+        if not self._endpoint:
+            self._endpoint = create_endpoint()
+        endpoint = self._endpoint
+
+        # call predictions and pull out probability
+        print(len(input_data))
+        predictions = endpoint.predict(input_data).predictions
+        for idx, input_instance in enumerate(input_data):
+            result = input_instance.copy()
+            result['prob_ontime'] = predictions[idx][0]
+            yield result
 
 
 def run(project, bucket, region, input):
@@ -77,13 +118,24 @@ def run(project, bucket, region, input):
             return
 
         # events -> features.  See ./flights_transforms.py for the code shared between training & prediction
-        features = ftxf.transform_events_to_features(events)
+        features = ftxf.transform_events_to_features(events, for_training=False)
+
+        # call model endpoint
+        # shared_handle = beam.utils.shared.Shared()
+        preds = (
+                features
+                | 'into_global' >> beam.WindowInto(beam.window.GlobalWindows())
+                | 'batch_instances' >> beam.BatchElements(min_batch_size=1, max_batch_size=32)
+                | 'model_predict' >> beam.ParDo(FlightsModelInvoker())
+        )
 
         # write it out
-        (features
-         # FIXME: make call to prediction endpoint, and add predicted ontime probability
-         | 'to_string' >> beam.Map(lambda x: json.dumps(x))
-         | 'flights_to_gcs' >> beam.io.textio.WriteToText(flights_output)
+        (preds
+         | 'to_string' >> beam.Map(lambda f: ','.join([str(x) for x in f.values()]))
+         | 'to_gcs' >> beam.io.textio.WriteToText(flights_output,
+                                                  file_name_suffix='.csv', header=CSV_HEADER,
+                                                  # workaround b/207384805
+                                                  num_shards=1)
          )
 
 

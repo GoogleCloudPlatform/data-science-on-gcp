@@ -40,7 +40,9 @@ def get_data_split(col):
 def to_datetime(event_time):
     if isinstance(event_time, str):
         # In BigQuery, this is a datetime.datetime.  In JSON, it's a string
-        event_time = dt.datetime.strptime(event_time, DATETIME_FORMAT)
+        # sometimes it has a T separating the date, sometimes it doesn't
+        # Handle all the possibilities
+        event_time = dt.datetime.strptime(event_time.replace('T', ' '), DATETIME_FORMAT)
     return event_time
 
 
@@ -61,10 +63,17 @@ def approx_miles_between(lat1, lon1, lat2, lon2):
     return 6371 * c * 0.621371  # miles
 
 
-def create_features_and_label(event):
+def create_features_and_label(event, for_training):
     try:
-        model_input = {
-            'ontime': 1.0 if float(event['ARR_DELAY']) < 15 else 0,
+        model_input = {}
+
+        if for_training:
+            model_input.update({
+                'ontime': 1.0 if float(event['ARR_DELAY']) < 15 else 0,
+            })
+
+        # features for both training and prediction
+        model_input.update({
             # same as in ch9
             'dep_delay': event['DEP_DELAY'],
             'taxi_out': event['TAXI_OUT'],
@@ -83,9 +92,15 @@ def create_features_and_label(event):
             # newly computed averages
             'avg_dep_delay': event['AVG_DEP_DELAY'],
             'avg_taxi_out': event['AVG_TAXI_OUT'],
-            # training data split
-            'data_split': get_data_split(event['FL_DATE'])
-        }
+
+        })
+
+        if for_training:
+            model_input.update({
+                # training data split
+                'data_split': get_data_split(event['FL_DATE'])
+            })
+
         yield model_input
     except Exception as e:
         # if any key is not present, don't use for training
@@ -137,7 +152,7 @@ def is_normal_operation(event):
     return True  # normal operation
 
 
-def transform_events_to_features(events):
+def transform_events_to_features(events, for_training=True):
     # events are assigned the time at which predictions will have to be made -- the wheels off time
     events = events | 'assign_time' >> beam.FlatMap(assign_timestamp)
     events = events | 'remove_cancelled' >> beam.Filter(is_normal_operation)
@@ -149,7 +164,7 @@ def transform_events_to_features(events):
             | 'by_airport' >> beam.Map(lambda x: (x['ORIGIN'], x))
             | 'group_by_airport' >> beam.GroupByKey()
             | 'events_and_stats' >> beam.FlatMap(add_stats)
-            | 'events_to_features' >> beam.FlatMap(create_features_and_label)
+            | 'events_to_features' >> beam.FlatMap(lambda x: create_features_and_label(x, for_training))
     )
 
     return features
