@@ -15,63 +15,10 @@
 # limitations under the License.
 
 import apache_beam as beam
-import datetime as dt
 import logging
-import numpy as np
 import json
 
-DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
-WINDOW_DURATION = 60 * 60
-WINDOW_EVERY = 5 * 60
-
-
-def create_features(event):
-    model_input = {
-        # same as in ch9
-        'dep_delay': event['DEP_DELAY'],
-        'taxi_out': event['TAXI_OUT'],
-        # 'distance': event['DISTANCE'],  # distance is not in wheelsoff
-        'origin': event['ORIGIN'],
-        'dest': event['DEST'],
-        'dep_hour': dt.datetime.strptime(event['DEP_TIME'], DATETIME_FORMAT).hour,
-        'is_weekday': 1.0 if dt.datetime.strptime(event['DEP_TIME'], DATETIME_FORMAT).isoweekday() < 6 else 0.0,
-        'carrier': event['UNIQUE_CARRIER'],
-        'dep_airport_lat': event['DEP_AIRPORT_LAT'],
-        'dep_airport_lon': event['DEP_AIRPORT_LON'],
-        'arr_airport_lat': event['ARR_AIRPORT_LAT'],
-        'arr_airport_lon': event['ARR_AIRPORT_LON'],
-        # newly computed averages
-        'avg_dep_delay': event['AVG_DEP_DELAY'],
-        'avg_taxi_out': event['AVG_TAXI_OUT'],
-    }
-    return model_input
-
-
-def compute_mean(events, col_name):
-    values = [float(event[col_name]) for event in events]
-    return float(np.mean(values)) if len(values) > 0 else None
-
-
-def add_stats(element, window=beam.DoFn.WindowParam):
-    # result of a group-by, so this will be called once for each airport and window
-    # all averages here are by airport
-    airport = element[0]
-    events = element[1]
-
-    # how late are flights leaving?
-    avg_dep_delay = compute_mean(events, 'DEP_DELAY')
-    avg_taxiout = compute_mean(events, 'TAXI_OUT')
-
-    # remember that an event will be present for 60 minutes, but we want to emit
-    # it only if it has just arrived (if it is within 5 minutes of the start of the window)
-    emit_end_time = window.start + WINDOW_EVERY
-    for event in events:
-        event_time = dt.datetime.strptime(event['EVENT_TIME'], DATETIME_FORMAT).timestamp()
-        if event_time < emit_end_time:
-            event_plus_stat = event.copy()
-            event_plus_stat['AVG_DEP_DELAY'] = avg_dep_delay
-            event_plus_stat['AVG_TAXI_OUT'] = avg_taxiout
-            yield event_plus_stat
+from .flightstxf import flights_transforms as ftxf
 
 
 def run(project, bucket, region, input):
@@ -129,24 +76,8 @@ def run(project, bucket, region, input):
             logging.error("Unknown input type {}".format(input))
             return
 
-        # assign the correct timestamp to the events
-        events = (
-                events
-                | 'assign_time' >> beam.Map(lambda event:
-                                            beam.window.TimestampedValue(event,
-                                                                         dt.datetime.strptime(event['EVENT_TIME'],
-                                                                                              DATETIME_FORMAT).timestamp()))
-        )
-
-        # compute stats by airport, and add to events
-        features = (
-                events
-                | 'window' >> beam.WindowInto(beam.window.SlidingWindows(WINDOW_DURATION, WINDOW_EVERY))
-                | 'by_airport' >> beam.Map(lambda x: (x['ORIGIN'], x))
-                | 'group_by_airport' >> beam.GroupByKey()
-                | 'events_and_stats' >> beam.FlatMap(add_stats)
-                | 'events_to_features' >> beam.Map(create_features)
-        )
+        # events -> features.  See ./flights_transforms.py for the code shared between training & prediction
+        features = ftxf.transform_events_to_features(events)
 
         # write it out
         (features

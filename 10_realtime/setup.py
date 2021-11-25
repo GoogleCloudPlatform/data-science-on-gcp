@@ -105,10 +105,9 @@ REQUIRED_PACKAGES = [
 setuptools.setup(
     name='flightsdf',
     version='0.0.1',
-    description='Data Science on GCP flights prediction pipelines',
+    description='Data Science on GCP flights training and prediction pipelines',
     install_requires=REQUIRED_PACKAGES,
     packages=setuptools.find_packages(),
-    py_modules=['df07'],
     cmdclass={
         # Command class instantiated and run during pip install scenarios.
         'build': build,

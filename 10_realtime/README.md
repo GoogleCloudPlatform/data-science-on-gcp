@@ -40,10 +40,24 @@ If you didn't go through Chapters 2-9, the simplest way to catch up is to copy d
   ```
   python3 change_ch9_files.py
   ```
-* Train ML model on the enriched dataset:
+* [Optional] Train an AutoML model on the enriched dataset:
+  ```
+  python3 train_on_vertexai.py --automl --project <PROJECT> --bucket <BUCKET> --region <REGION>
+  ```
+  Verify performance by running the following BigQuery query:
+  ```
+  SELECT  
+  SQRT(SUM(
+      (CAST(ontime AS FLOAT64) - predicted_ontime.scores[OFFSET(0)])*
+      (CAST(ontime AS FLOAT64) - predicted_ontime.scores[OFFSET(0)])
+      )/COUNT(*))
+  FROM dsongcp.ch10_automl_evaluated
+  ```
+* Train custom ML model on the enriched dataset:
   ```
   python3 train_on_vertexai.py --project <PROJECT> --bucket <BUCKET> --region <REGION>
   ```
+  Look at the logs of the log to determine the final RMSE.
 * [Optional] Run a local pipeline to invoke predictions:
     ```
     python3 make_predictions.py --input local
