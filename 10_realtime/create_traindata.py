@@ -131,6 +131,15 @@ def assign_timestamp(event):
         pass
 
 
+def is_normal_operation(event):
+    for flag in ['CANCELLED', 'DIVERTED']:
+        if flag in event:
+            s = str(event[flag]).lower()
+            if s == 'true':
+                return False;  # cancelled or diverted
+    return True  # normal operation
+
+
 def run(project, bucket, region, input):
     if input == 'local':
         logging.info('Running locally on small extract')
@@ -178,6 +187,7 @@ def run(project, bucket, region, input):
 
         # events are assigned the time at which predictions will have to be made -- the wheels off time
         events = events | 'assign_time' >> beam.FlatMap(assign_timestamp)
+        events = events | 'remove_cancelled' >> beam.Filter(is_normal_operation)
 
         # compute stats by airport, and add to events
         features = (
