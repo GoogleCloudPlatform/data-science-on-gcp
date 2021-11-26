@@ -54,7 +54,7 @@ class FlightsModelInvoker(beam.DoFn):
         endpoint = self._endpoint
 
         # call predictions and pull out probability
-        print(len(input_data))
+        logging.info("Invoking ML model on {} flights".format(len(input_data)))
         predictions = endpoint.predict(input_data).predictions
         for idx, input_instance in enumerate(input_data):
             result = input_instance.copy()
@@ -83,6 +83,9 @@ def run(project, bucket, region, input):
             '--region={}'.format(region),
             '--runner=DataflowRunner'
         ]
+        if input == 'pubsub':
+            logging.info("Turning on streaming. Cancel the pipeline from GCP console")
+            argv += ['--streaming']
         flights_output = 'gs://{}/flights/ch10/predictions'.format(bucket)
 
     with beam.Pipeline(argv=argv) as pipeline:
@@ -97,7 +100,8 @@ def run(project, bucket, region, input):
                     | 'parse_input' >> beam.Map(lambda line: json.loads(line))
             )
         elif input == 'bigquery':
-            input_query = 'SELECT EVENT_DATA FROM dsongcp.flights_simevents'
+            input_query = ("SELECT EVENT_DATA FROM dsongcp.flights_simevents " +
+                           "WHERE EVENT_TIME BETWEEN '2015-03-01' AND '2015-03-02'")
             logging.info("Reading from {} ... Writing to {}".format(input_query, flights_output))
             events = (
                     pipeline

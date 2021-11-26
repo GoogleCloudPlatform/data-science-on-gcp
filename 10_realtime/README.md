@@ -58,7 +58,7 @@ If you didn't go through Chapters 2-9, the simplest way to catch up is to copy d
   python3 train_on_vertexai.py --project <PROJECT> --bucket <BUCKET> --region <REGION>
   ```
   Look at the logs of the log to determine the final RMSE.
-* [Optional] Run a local pipeline to invoke predictions:
+* Run a local pipeline to invoke predictions:
     ```
     python3 make_predictions.py --input local
     ```
@@ -66,4 +66,31 @@ If you didn't go through Chapters 2-9, the simplest way to catch up is to copy d
    ```
    cat /tmp/predictions*
    ```
-
+* [Optional] Run a pipeline on full BigQuery dataset to invoke predictions:
+    ```
+    python3 make_predictions.py --input bigquery --project <PROJECT> --bucket <BUCKET> --region <REGION>
+    ```
+   Verify the results
+   ```
+   gsutil cat gs://BUCKET/flights/ch10/predictions* | head -5
+   ```
+* [Optional] Simulate real-time pipeline and check to see if predictions are being made
+   
+   In one terminal, type:
+    ```
+  cd ../04_streaming/simulate
+  python3 ./simulate.py --startTime '2015-05-01 00:00:00 UTC' \
+           --endTime '2015-05-04 00:00:00 UTC' --speedFactor=30 --project <PROJECT>
+    ```
+  
+  In another terminal type:
+    ```
+    python3 make_predictions.py --input pubsub --project <PROJECT> --bucket <BUCKET> --region <REGION>
+    ```
+  
+  Ensure that the pipeline starts, then once output elements are starting to be written out, do:
+   ```
+   gsutil ls gs://BUCKET/flights/ch10/predictions*
+   ```
+   Make sure to go to the GCP Console and stop the Dataflow pipeline.
+ *
