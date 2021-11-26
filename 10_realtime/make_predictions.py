@@ -25,37 +25,56 @@ from flightstxf import flights_transforms as ftxf
 CSV_HEADER = 'dep_delay,taxi_out,distance,origin,dest,dep_hour,is_weekday,carrier,dep_airport_lat,dep_airport_lon,arr_airport_lat,arr_airport_lon,avg_dep_delay,avg_taxi_out,prob_ontime'
 
 
+# class FlightsModelSharedInvoker(beam.DoFn):
+#     # https://beam.apache.org/releases/pydoc/2.24.0/apache_beam.utils.shared.html
+#     def __init__(self, shared_handle):
+#         self._shared_handle = shared_handle
+#
+#     def process(self, input_data):
+#         def create_endpoint():
+#             from google.cloud import aiplatform
+#             endpoint_name = 'flights-ch10'
+#             endpoints = aiplatform.Endpoint.list(
+#                 filter='display_name="{}"'.format(endpoint_name),
+#                 order_by='create_time desc'
+#             )
+#             if len(endpoints) == 0:
+#                 raise EnvironmentError("No endpoint named {}".format(endpoint_name))
+#             logging.info("Found endpoint {}".format(endpoints[0]))
+#             return endpoints[0]
+#
+#         # get already created endpoint if possible
+#         endpoint = self._shared_handle.acquire(create_endpoint)
+#
+#         # call predictions and pull out probability
+#         logging.info("Invoking ML model on {} flights".format(len(input_data)))
+#         predictions = endpoint.predict(input_data).predictions
+#         for idx, input_instance in enumerate(input_data):
+#             result = input_instance.copy()
+#             result['prob_ontime'] = predictions[idx][0]
+#             yield result
+
+
 class FlightsModelInvoker(beam.DoFn):
     def __init__(self):
-        self._endpoint = None
+        self.endpoint = None
 
-    # https://beam.apache.org/releases/pydoc/2.24.0/apache_beam.utils.shared.html
-    # def __init__(self, shared_handle):
-    #   # self._shared_handle = shared_handle
-    #    self._endpoint = None
+    def setup(self):
+        from google.cloud import aiplatform
+        endpoint_name = 'flights-ch10'
+        endpoints = aiplatform.Endpoint.list(
+            filter='display_name="{}"'.format(endpoint_name),
+            order_by='create_time desc'
+        )
+        if len(endpoints) == 0:
+            raise EnvironmentError("No endpoint named {}".format(endpoint_name))
+        logging.info("Found endpoint {}".format(endpoints[0]))
+        self.endpoint = endpoints[0]
 
     def process(self, input_data):
-        def create_endpoint():
-            from google.cloud import aiplatform
-            endpoint_name = 'flights-ch10'
-            endpoints = aiplatform.Endpoint.list(
-                filter='display_name="{}"'.format(endpoint_name),
-                order_by='create_time desc'
-            )
-            if len(endpoints) == 0:
-                raise EnvironmentError("No endpoint named {}".format(endpoint_name))
-            logging.info("Found endpoint {}".format(endpoints[0]))
-            return endpoints[0]
-
-        # get already created endpoint if possible
-        # endpoint = self._shared_handle.acquire(create_endpoint)
-        if not self._endpoint:
-            self._endpoint = create_endpoint()
-        endpoint = self._endpoint
-
         # call predictions and pull out probability
         logging.info("Invoking ML model on {} flights".format(len(input_data)))
-        predictions = endpoint.predict(input_data).predictions
+        predictions = self.endpoint.predict(input_data).predictions
         for idx, input_instance in enumerate(input_data):
             result = input_instance.copy()
             result['prob_ontime'] = predictions[idx][0]
@@ -129,7 +148,7 @@ def run(project, bucket, region, input):
         preds = (
                 features
                 | 'into_global' >> beam.WindowInto(beam.window.GlobalWindows())
-                | 'batch_instances' >> beam.BatchElements(min_batch_size=1, max_batch_size=32)
+                | 'batch_instances' >> beam.BatchElements(min_batch_size=1, max_batch_size=64)
                 | 'model_predict' >> beam.ParDo(FlightsModelInvoker())
         )
 
