@@ -22,7 +22,7 @@ import os
 from flightstxf import flights_transforms as ftxf
 
 
-CSV_HEADER = 'dep_delay,taxi_out,distance,origin,dest,dep_hour,is_weekday,carrier,dep_airport_lat,dep_airport_lon,arr_airport_lat,arr_airport_lon,avg_dep_delay,avg_taxi_out,prob_ontime'
+CSV_HEADER = 'event_time,dep_delay,taxi_out,distance,origin,dest,dep_hour,is_weekday,carrier,dep_airport_lat,dep_airport_lon,arr_airport_lat,arr_airport_lon,avg_dep_delay,avg_taxi_out,prob_ontime'
 
 
 # class FlightsModelSharedInvoker(beam.DoFn):
@@ -74,22 +74,28 @@ class FlightsModelInvoker(beam.DoFn):
     def process(self, input_data):
         # call predictions and pull out probability
         logging.info("Invoking ML model on {} flights".format(len(input_data)))
-        predictions = self.endpoint.predict(input_data).predictions
+        # drop inputs not needed by model
+        features = [x.copy() for x in input_data]
+        for f in features:
+            f.pop('event_time')
+        # call model
+        predictions = self.endpoint.predict(features).predictions
         for idx, input_instance in enumerate(input_data):
             result = input_instance.copy()
             result['prob_ontime'] = predictions[idx][0]
             yield result
 
 
-def run(project, bucket, region, input):
-    if input == 'local':
+def run(project, bucket, region, source, sink):
+    if source == 'local':
         logging.info('Running locally on small extract')
         argv = [
+            '--project={0}'.format(project),
             '--runner=DirectRunner'
         ]
         flights_output = '/tmp/predictions'
     else:
-        logging.info('Running in the cloud on full dataset input={}'.format(input))
+        logging.info('Running in the cloud on full dataset input={}'.format(source))
         argv = [
             '--project={0}'.format(project),
             '--job_name=ch10predictions',
@@ -102,7 +108,7 @@ def run(project, bucket, region, input):
             '--region={}'.format(region),
             '--runner=DataflowRunner'
         ]
-        if input == 'pubsub':
+        if source == 'pubsub':
             logging.info("Turning on streaming. Cancel the pipeline from GCP console")
             argv += ['--streaming']
         flights_output = 'gs://{}/flights/ch10/predictions'.format(bucket)
@@ -110,7 +116,7 @@ def run(project, bucket, region, input):
     with beam.Pipeline(argv=argv) as pipeline:
 
         # read the event stream
-        if input == 'local':
+        if source == 'local':
             input_file = './simevents_sample.json'
             logging.info("Reading from {} ... Writing to {}".format(input_file, flights_output))
             events = (
@@ -118,7 +124,7 @@ def run(project, bucket, region, input):
                     | 'read_input' >> beam.io.ReadFromText(input_file)
                     | 'parse_input' >> beam.Map(lambda line: json.loads(line))
             )
-        elif input == 'bigquery':
+        elif source == 'bigquery':
             input_query = ("SELECT EVENT_DATA FROM dsongcp.flights_simevents " +
                            "WHERE EVENT_TIME BETWEEN '2015-03-01' AND '2015-03-02'")
             logging.info("Reading from {} ... Writing to {}".format(input_query, flights_output))
@@ -127,7 +133,7 @@ def run(project, bucket, region, input):
                     | 'read_input' >> beam.io.ReadFromBigQuery(query=input_query, use_standard_sql=True)
                     | 'parse_input' >> beam.Map(lambda row: json.loads(row['EVENT_DATA']))
             )
-        elif input == 'pubsub':
+        elif source == 'pubsub':
             input_topic = "projects/{}/topics/wheelsoff".format(project)
             logging.info("Reading from {} ... Writing to {}".format(input_topic, flights_output))
             events = (
@@ -137,7 +143,7 @@ def run(project, bucket, region, input):
                     | 'parse_input' >> beam.Map(lambda s: json.loads(s))
             )
         else:
-            logging.error("Unknown input type {}".format(input))
+            logging.error("Unknown input type {}".format(source))
             return
 
         # events -> features.  See ./flights_transforms.py for the code shared between training & prediction
@@ -153,23 +159,53 @@ def run(project, bucket, region, input):
         )
 
         # write it out
-        (preds
-         | 'to_string' >> beam.Map(lambda f: ','.join([str(x) for x in f.values()]))
-         | 'to_gcs' >> beam.io.textio.WriteToText(flights_output,
-                                                  file_name_suffix='.csv', header=CSV_HEADER,
-                                                  # workaround b/207384805
-                                                  num_shards=1)
-         )
+        if sink == 'file':
+            (preds
+             | 'to_string' >> beam.Map(lambda f: ','.join([str(x) for x in f.values()]))
+             | 'to_gcs' >> beam.io.textio.WriteToText(flights_output,
+                                                      file_name_suffix='.csv', header=CSV_HEADER,
+                                                      # workaround b/207384805
+                                                      num_shards=1)
+             )
+        elif sink == 'bigquery':
+            preds_schema = ','.join([
+                'event_time:timestamp',
+                'prob_ontime:float',
+                'dep_delay:float',
+                'taxi_out:float',
+                'distance:float',
+                'origin:string',
+                'dest:string',
+                'dep_hour:integer',
+                'is_weekday:integer',
+                'carrier:string',
+                'dep_airport_lat:float,dep_airport_lon:float',
+                'arr_airport_lat:float,arr_airport_lon:float',
+                'avg_dep_delay:float',
+                'avg_taxi_out:float',
+            ])
+            (preds
+             | 'to_bigquery' >> beam.io.WriteToBigQuery(
+                        'dsongcp.streaming_preds', schema=preds_schema,
+                        # write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+                        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                        method='STREAMING_INSERTS'
+                    )
+             )
+        else:
+            logging.error("Unknown output type {}".format(sink))
+            return
 
 
 if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Create training CSV file that includes time-aggregate features')
-    parser.add_argument('-p', '--project', help='Project to be billed for Dataflow job. Omit if running locally.')
+    parser.add_argument('-p', '--project', help='Project to be billed for Dataflow/BigQuery', required=True)
     parser.add_argument('-b', '--bucket', help='Training data will be written to gs://BUCKET/flights/ch10/')
     parser.add_argument('-r', '--region', help='Region to run Dataflow job. Choose the same region as your bucket.')
     parser.add_argument('-i', '--input', help='local, bigquery OR pubsub', required=True)
+    parser.add_argument('-o', '--output', help='file, bigquery OR bigtable', default='file')
 
     logging.getLogger().setLevel(logging.INFO)
     args = vars(parser.parse_args())
@@ -180,4 +216,5 @@ if __name__ == '__main__':
             parser.print_help()
             parser.exit()
 
-    run(project=args['project'], bucket=args['bucket'], region=args['region'], input=args['input'])
+    run(project=args['project'], bucket=args['bucket'], region=args['region'],
+        source=args['input'], sink=args['output'])

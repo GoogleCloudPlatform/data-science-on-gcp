@@ -60,7 +60,7 @@ def approx_miles_between(lat1, lon1, lat2, lon2):
          pow(np.sin(d_lon / 2), 2) *
          np.cos(lat1) * np.cos(lat2));
     c = 2 * np.arcsin(np.sqrt(a))
-    return 6371 * c * 0.621371  # miles
+    return float(6371 * c * 0.621371)  # miles
 
 
 def create_features_and_label(event, for_training):
@@ -99,6 +99,11 @@ def create_features_and_label(event, for_training):
             model_input.update({
                 # training data split
                 'data_split': get_data_split(event['FL_DATE'])
+            })
+        else:
+            model_input.update({
+                # prediction output should include timestamp
+                'event_time': event['WHEELS_OFF']
             })
 
         yield model_input

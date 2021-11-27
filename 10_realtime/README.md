@@ -75,22 +75,50 @@ If you didn't go through Chapters 2-9, the simplest way to catch up is to copy d
    gsutil cat gs://BUCKET/flights/ch10/predictions* | head -5
    ```
 * [Optional] Simulate real-time pipeline and check to see if predictions are being made
-   
+
+  
    In one terminal, type:
     ```
   cd ../04_streaming/simulate
   python3 ./simulate.py --startTime '2015-05-01 00:00:00 UTC' \
            --endTime '2015-05-04 00:00:00 UTC' --speedFactor=30 --project <PROJECT>
     ```
-  
+   
   In another terminal type:
     ```
-    python3 make_predictions.py --input pubsub --project <PROJECT> --bucket <BUCKET> --region <REGION>
+    python3 make_predictions.py --input pubsub \
+           --project <PROJECT> --bucket <BUCKET> --region <REGION>
     ```
   
-  Ensure that the pipeline starts, then once output elements are starting to be written out, do:
+  Ensure that the pipeline starts, check that output elements are starting to be written out, do:
    ```
    gsutil ls gs://BUCKET/flights/ch10/predictions*
    ```
    Make sure to go to the GCP Console and stop the Dataflow pipeline.
- *
+
+  
+* Simulate real-time pipeline and try out different jagger etc.
+
+  In one terminal, type:
+    ```
+  cd ../04_streaming/simulate
+  python3 ./simulate.py --startTime '2015-02-01 00:00:00 UTC' \
+           --endTime '2015-02-03 00:00:00 UTC' --speedFactor=30 --project <PROJECT>
+    ```
+   
+  In another terminal type:
+    ```
+    python3 make_predictions.py --input pubsub --output bigquery \
+           --project <PROJECT> --bucket <BUCKET> --region <REGION>
+    ```
+  
+  Ensure that the pipeline starts, look at BigQuery:
+   ```
+   SELECT * FROM dsongcp.streaming_preds ORDER BY event_time DESC LIMIT 10
+   ```
+   When done, make sure to go to the GCP Console and stop the Dataflow pipeline.
+   
+   Note: If you are going to try it a second time around, delete the BigQuery sink, or simulate with a different time range
+   ```
+   bq rm -f dsongcp.streaming_preds
+   ```
