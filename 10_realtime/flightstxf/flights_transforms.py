@@ -113,7 +113,7 @@ def create_features_and_label(event, for_training):
         if for_training:
             model_input.update({
                 # training data split
-                'data_split': get_data_split(event['FL_DATE'])
+                'data_split': get_data_split_2019(event['FL_DATE'])
             })
         else:
             model_input.update({
@@ -129,7 +129,7 @@ def create_features_and_label(event, for_training):
 
 
 def compute_mean(events, col_name):
-    values = [float(event[col_name]) for event in events]
+    values = [float(event[col_name]) for event in events if col_name in event and event[col_name]]
     return float(np.mean(values)) if len(values) > 0 else None
 
 
