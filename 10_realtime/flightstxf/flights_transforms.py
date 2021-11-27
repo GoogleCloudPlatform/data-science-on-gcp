@@ -84,7 +84,7 @@ def create_features_and_label(event, for_training):
 
         if for_training:
             model_input.update({
-                'ontime': 1.0 if float(event['ARR_DELAY']) < 15 else 0,
+                'ontime': 1.0 if float(event['ARR_DELAY'] or 0) < 15 else 0,
             })
 
         # features for both training and prediction
