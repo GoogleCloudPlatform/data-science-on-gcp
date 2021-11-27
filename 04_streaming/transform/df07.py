@@ -59,32 +59,37 @@ def add_24h_if_before(arrtime, deptime):
    else:
       return arrtime
 
+
+def airport_timezone(airport_id, airport_timezones):
+   if airport_id in airport_timezones:
+      return airport_timezones[airport_id]
+   else:
+      return ('37.52', '-92.17', u'America/Chicago')
+
+
 def tz_correct(fields, airport_timezones):
-   fields['FL_DATE'] = fields['FL_DATE'].strftime('%Y-%m-%d') # convert to a string so JSON code works
-   try:
-      # convert all times to UTC
-      dep_airport_id = fields["ORIGIN_AIRPORT_SEQ_ID"]
-      arr_airport_id = fields["DEST_AIRPORT_SEQ_ID"]
-      dep_timezone = airport_timezones[dep_airport_id][2]
-      arr_timezone = airport_timezones[arr_airport_id][2]
+   fields['FL_DATE'] = fields['FL_DATE'].strftime('%Y-%m-%d')  # convert to a string so JSON code works
 
-      for f in ["CRS_DEP_TIME", "DEP_TIME", "WHEELS_OFF"]:
-         fields[f], deptz = as_utc(fields["FL_DATE"], fields[f], dep_timezone)
-      for f in ["WHEELS_ON", "CRS_ARR_TIME", "ARR_TIME"]:
-         fields[f], arrtz = as_utc(fields["FL_DATE"], fields[f], arr_timezone)
+   # convert all times to UTC
+   dep_airport_id = fields["ORIGIN_AIRPORT_SEQ_ID"]
+   arr_airport_id = fields["DEST_AIRPORT_SEQ_ID"]
+   fields["DEP_AIRPORT_LAT"], fields["DEP_AIRPORT_LON"], dep_timezone = airport_timezone(dep_airport_id,
+                                                                                         airport_timezones)
+   fields["ARR_AIRPORT_LAT"], fields["ARR_AIRPORT_LON"], arr_timezone = airport_timezone(arr_airport_id,
+                                                                                         airport_timezones)
 
-      for f in ["WHEELS_OFF", "WHEELS_ON", "CRS_ARR_TIME", "ARR_TIME"]:
-         fields[f] = add_24h_if_before(fields[f], fields["DEP_TIME"])
+   for f in ["CRS_DEP_TIME", "DEP_TIME", "WHEELS_OFF"]:
+      fields[f], deptz = as_utc(fields["FL_DATE"], fields[f], dep_timezone)
+   for f in ["WHEELS_ON", "CRS_ARR_TIME", "ARR_TIME"]:
+      fields[f], arrtz = as_utc(fields["FL_DATE"], fields[f], arr_timezone)
 
-      fields["DEP_AIRPORT_LAT"] = airport_timezones[dep_airport_id][0]
-      fields["DEP_AIRPORT_LON"] = airport_timezones[dep_airport_id][1]
-      fields["DEP_AIRPORT_TZOFFSET"] = deptz
-      fields["ARR_AIRPORT_LAT"] = airport_timezones[arr_airport_id][0]
-      fields["ARR_AIRPORT_LON"] = airport_timezones[arr_airport_id][1]
-      fields["ARR_AIRPORT_TZOFFSET"] = arrtz
-      yield (fields)
-   except KeyError as e:
-      logging.exception(" Ignoring " + line + " because airport is not known")
+   for f in ["WHEELS_OFF", "WHEELS_ON", "CRS_ARR_TIME", "ARR_TIME"]:
+      fields[f] = add_24h_if_before(fields[f], fields["DEP_TIME"])
+
+   fields["DEP_AIRPORT_TZOFFSET"] = deptz
+   fields["ARR_AIRPORT_TZOFFSET"] = arrtz
+   yield (fields)
+
 
 def get_next_event(fields):
     if len(fields["DEP_TIME"]) > 0:

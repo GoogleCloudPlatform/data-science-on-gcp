@@ -25,15 +25,30 @@ WINDOW_DURATION = 60 * 60
 WINDOW_EVERY = 5 * 60
 
 
-def get_data_split(col):
+def get_data_split(fl_date):
+    fl_date_str = str(fl_date)
     # Use farm fingerprint just like in BigQuery
-    x = np.abs(np.uint64(farmhash.fingerprint64(str(col))).astype('int64') % 100)
+    x = np.abs(np.uint64(farmhash.fingerprint64(fl_date_str)).astype('int64') % 100)
     if x < 60:
         data_split = 'TRAIN'
     elif x < 80:
         data_split = 'VALIDATE'
     else:
         data_split = 'TEST'
+    return data_split
+
+
+def get_data_split_2019(fl_date):
+    fl_date_str = str(fl_date)
+    if fl_date_str > '2019':
+        data_split = 'TEST'
+    else:
+        # Use farm fingerprint just like in BigQuery
+        x = np.abs(np.uint64(farmhash.fingerprint64(fl_date_str)).astype('int64') % 100)
+        if x < 95:
+            data_split = 'TRAIN'
+        else:
+            data_split = 'VALIDATE'
     return data_split
 
 

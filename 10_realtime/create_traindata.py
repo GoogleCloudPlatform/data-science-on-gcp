@@ -17,25 +17,11 @@
 import apache_beam as beam
 import logging
 import os
-import numpy as np
-import farmhash  # pip install pyfarmhash
 import json
 
 from flightstxf import flights_transforms as ftxf
 
 CSV_HEADER = 'ontime,dep_delay,taxi_out,distance,origin,dest,dep_hour,is_weekday,carrier,dep_airport_lat,dep_airport_lon,arr_airport_lat,arr_airport_lon,avg_dep_delay,avg_taxi_out,data_split'
-
-
-def get_data_split(col):
-    # Use farm fingerprint just like in BigQuery
-    x = np.abs(np.uint64(farmhash.fingerprint64(str(col))).astype('int64') % 100)
-    if x < 60:
-        data_split = 'TRAIN'
-    elif x < 80:
-        data_split = 'VALIDATE'
-    else:
-        data_split = 'TEST'
-    return data_split
 
 
 def run(project, bucket, region, input):

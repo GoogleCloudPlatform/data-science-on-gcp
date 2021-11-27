@@ -13,12 +13,12 @@ SCHEMA=Year:STRING,Quarter:STRING,Month:STRING,DayofMonth:STRING,DayOfWeek:STRIN
 # create dataset if not exists
 PROJECT=$(gcloud config get-value project)
 #bq --project_id $PROJECT rm -f ${PROJECT}:dsongcp.flights_raw
-bq --project_id $PROJECT show dsongcp || bq mk dsongcp
+bq --project_id $PROJECT show dsongcp || bq mk --sync dsongcp
 
 for MONTH in `seq -w 1 12`; do
 
 CSVFILE=gs://${BUCKET}/flights/raw/${YEAR}${MONTH}.csv
-bq --project_id $PROJECT \
+bq --project_id $PROJECT  --sync \
    load --time_partitioning_field=FlightDate --time_partitioning_type=MONTH \
    --source_format=CSV --ignore_unknown_values --skip_leading_rows=1 --schema=$SCHEMA \
    --replace ${PROJECT}:dsongcp.flights_raw\$${YEAR}${MONTH} $CSVFILE

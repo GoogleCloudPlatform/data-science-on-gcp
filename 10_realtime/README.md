@@ -122,3 +122,46 @@ If you didn't go through Chapters 2-9, the simplest way to catch up is to copy d
    ```
    bq rm -f dsongcp.streaming_preds
    ```
+  
+  
+#### [Optional] Train on 2015-2018 and evaluate on 2019
+Note that this will take many hours and require significant resources.
+There is a reason why I have worked with only 1 year of data so far in the book.
+* Start a Vertex AI Workbench and open a Terminal.
+* Clone the source repository of this book.
+* [5 min] Clean the contents of your bucket and BigQuery dataset:
+  ```
+  gsutil -m rm -rf gs://BUCKET/*
+  bq rm -r -f dsongcp
+  ```
+* [30 min] Ingest raw files:
+  * cd 02_ingest
+  * Edit the YEARS in 02_ingest/ingest.sh to process 2015 to 2019.
+  * Run ./ingest.sh program
+* [2 min] Create views
+  * cd ../03_sqlstudio
+  * ./create_views.sh
+* [2 hours] Do time correction
+  * cd ../04_streaming/transform
+  * ./stage_airports_file.sh $BUCKET
+  * Edit number of workers in df07.py to 20 (if you have the quota)
+  * python3 df07.py --project $PROJECT --bucket $BUCKET --region $REGION 
+* [] Create training dataset
+  * cd ../10_realtime
+  * Edit flightstxf/create_traindata.py changing the line
+    ```
+    'data_split': get_data_split(event['FL_DATE'])
+    ```
+    to
+    ```
+    'data_split': get_data_split_2019(event['FL_DATE'])
+    ```
+  * Create full training dataset
+  ```
+    python3 create_traindata.py --input bigquery --project $PROJECT --bucket $BUCKET --region $REGION
+  ```
+* [] Train ML model:
+  ```
+  python3 train_on_vertexai.py --project <PROJECT> --bucket <BUCKET> --region <REGION>
+  ```
+  
