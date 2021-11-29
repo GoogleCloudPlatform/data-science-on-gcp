@@ -172,3 +172,4 @@ There is a reason why I have worked with only 1 year of data so far in the book.
   ```
   python3 train_on_vertexai.py --automl --project $PROJECT --bucket $BUCKET --region $REGION
   ```
+* Open the notebook evaluation.ipynb in Vertex Workbench and run the cells.
