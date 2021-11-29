@@ -127,9 +127,7 @@ If you didn't go through Chapters 2-9, the simplest way to catch up is to copy d
 #### [Optional] Train on 2015-2018 and evaluate on 2019
 Note that this will take many hours and require significant resources.
 There is a reason why I have worked with only 1 year of data so far in the book.
-* Start a Vertex AI Workbench and open a Terminal.
-* Clone the source repository of this book.
-* [5 min] Clean the contents of your bucket and BigQuery dataset:
+* [5 min] Erase the current contents of your bucket and BigQuery dataset:
   ```
   gsutil -m rm -rf gs://BUCKET/*
   bq rm -r -f dsongcp
@@ -141,12 +139,12 @@ There is a reason why I have worked with only 1 year of data so far in the book.
 * [2 min] Create views
   * cd ../03_sqlstudio
   * ./create_views.sh
-* [2 hours] Do time correction
+* [40 min] Do time correction
   * cd ../04_streaming/transform
   * ./stage_airports_file.sh $BUCKET
-  * Edit number of workers in df07.py to 20 (if you have the quota)
+  * Increase number of workers in df07.py to 20 or the limit of your quota
   * python3 df07.py --project $PROJECT --bucket $BUCKET --region $REGION 
-* [] Create training dataset
+* [6 hours] Create training dataset
   * cd ../10_realtime
   * Edit flightstxf/create_traindata.py changing the line
     ```
@@ -156,12 +154,12 @@ There is a reason why I have worked with only 1 year of data so far in the book.
     ```
     'data_split': get_data_split_2019(event['FL_DATE'])
     ```
+  * Change the worker type to m1-ultramem-40 and disksize to 500 GB in the run() method of create_traindata.py.
   * Create full training dataset
-  ```
+    ```
     python3 create_traindata.py --input bigquery --project $PROJECT --bucket $BUCKET --region $REGION
+    ```
+* [] Train AutoML model so that we have evaluation statistics in BigQuery:
   ```
-* [] Train ML model:
+  python3 train_on_vertexai.py --automl --project <PROJECT> --bucket <BUCKET> --region <REGION>
   ```
-  python3 train_on_vertexai.py --project <PROJECT> --bucket <BUCKET> --region <REGION>
-  ```
-  

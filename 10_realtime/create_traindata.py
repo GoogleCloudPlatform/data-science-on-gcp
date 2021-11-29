@@ -24,6 +24,14 @@ from flightstxf import flights_transforms as ftxf
 CSV_HEADER = 'ontime,dep_delay,taxi_out,distance,origin,dest,dep_hour,is_weekday,carrier,dep_airport_lat,dep_airport_lon,arr_airport_lat,arr_airport_lon,avg_dep_delay,avg_taxi_out,data_split'
 
 
+def dict_to_csv(f):
+    try:
+        yield ','.join([str(x) for x in f.values()])
+    except Exception as e:
+        logging.warning('Ignoring {} because: {}'.format(f, e), exc_info=True)
+        pass
+
+
 def run(project, bucket, region, input):
     if input == 'local':
         logging.info('Running locally on small extract')
@@ -42,6 +50,7 @@ def run(project, bucket, region, input):
             '--setup_file=./setup.py',
             '--autoscaling_algorithm=THROUGHPUT_BASED',
             '--max_num_workers=20',
+            # '--max_num_workers=4', '--worker_machine_type=m1-ultramem-40', '--disk_size_gb=500',  # for full 2015-2019 dataset
             '--region={}'.format(region),
             '--runner=DataflowRunner'
         ]
@@ -72,6 +81,13 @@ def run(project, bucket, region, input):
         # events -> features.  See ./flights_transforms.py for the code shared between training & prediction
         features = ftxf.transform_events_to_features(events)
 
+        # shuffle globally so that we are not at mercy of TensorFlow's shuffle buffer
+        features = (
+            features
+            | 'into_global' >> beam.WindowInto(beam.window.GlobalWindows())
+            | 'shuffle' >> beam.util.Reshuffle()
+        )
+
         # write out
         for split in ['ALL', 'TRAIN', 'VALIDATE', 'TEST']:
             feats = features
@@ -79,7 +95,7 @@ def run(project, bucket, region, input):
                 feats = feats | 'only_{}'.format(split) >> beam.Filter(lambda f: f['data_split'] == split)
             (
                 feats
-                | '{}_to_string'.format(split) >> beam.Map(lambda f: ','.join([str(x) for x in f.values()]))
+                | '{}_to_string'.format(split) >> beam.FlatMap(dict_to_csv)
                 | '{}_to_gcs'.format(split) >> beam.io.textio.WriteToText(os.path.join(flights_output, split.lower()),
                                                                           file_name_suffix='.csv', header=CSV_HEADER,
                                                                           # workaround b/207384805
