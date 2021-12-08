@@ -20,6 +20,7 @@ import tensorflow as tf
 from google.cloud import aiplatform
 from google.cloud.aiplatform import gapic as aip
 from google.cloud.aiplatform import hyperparameter_tuning as hpt
+from kfp.v2 import compiler, dsl
 
 ENDPOINT_NAME = 'flights'
 
@@ -149,6 +150,9 @@ def do_hyperparameter_tuning(data_set, timestamp, develop_mode):
     return train_custom_model(data_set, timestamp, develop_mode, extra_args=best_params)
 
 
+@dsl.pipeline(name="flights-ch9-pipeline",
+              description="ds-on-gcp ch9 flights pipeline"
+)
 def main():
     aiplatform.init(project=PROJECT, location=REGION, staging_bucket='gs://{}'.format(BUCKET))
 
@@ -196,6 +200,19 @@ def main():
         model.wait()
 
 
+def run_pipeline():
+    compiler.Compiler().compile(pipeline_func=main, package_path='flights_pipeline.json')
+
+    job = aip.PipelineJob(
+        display_name="{}-pipeline".format(ENDPOINT_NAME),
+        template_path="{}_pipeline.json".format(ENDPOINT_NAME),
+        pipeline_root="{}/pipeline_root/intro".format(BUCKET),
+        enable_caching=False
+    )
+
+    job.run()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -231,6 +248,11 @@ if __name__ == '__main__':
         help='Number of hyperparameter trials. 0/1 means no hyperparam. Ignored if --automl is set.',
         type=int,
         default=0)
+    parser.add_argument(
+        '--pipeline',
+        help='Run as pipeline',
+        dest='pipeline',
+        action='store_true')
 
     # parse args
     logging.getLogger().setLevel(logging.INFO)
@@ -243,5 +265,7 @@ if __name__ == '__main__':
     NUM_HPARAM_TRIALS = args['num_hparam_trials']
     TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
 
-    main()
-
+    if args['pipeline']:
+        run_pipeline()
+    else:
+        main()

@@ -32,7 +32,7 @@ to make sure the code works.
 #### From CloudShell
 * Install the aiplatform library
     ```
-    pip3 install google-cloud-aiplatform cloudml-hypertune
+    pip3 install google-cloud-aiplatform cloudml-hypertune kfp
     ```
 * Try running the standalone model file on a small sample:
     ```

@@ -37,7 +37,12 @@ def features_and_labels(features):
 
 
 def read_dataset(pattern, batch_size, mode=tf.estimator.ModeKeys.TRAIN, truncate=None):
-    dataset = tf.data.experimental.make_csv_dataset(pattern, batch_size, num_epochs=1)
+    dataset = tf.data.experimental.make_csv_dataset(
+        pattern, batch_size,
+        sloppy=True,
+        num_parallel_reads=2,
+        ignore_errors=True,
+        num_epochs=1)
     dataset = dataset.map(features_and_labels)
     if mode == tf.estimator.ModeKeys.TRAIN:
         dataset = dataset.shuffle(batch_size * 10)

@@ -22,7 +22,6 @@ CHANGES = [
     ("ENDPOINT_NAME = 'flights'", "ENDPOINT_NAME = 'flights-ch10'"),
 
     # model.py
-    # ("dep_delay,taxi_out,distance,", "dep_delay,taxi_out,"),
     ("arr_airport_lat,arr_airport_lon", "arr_airport_lat,arr_airport_lon,avg_dep_delay,avg_taxi_out")
 ]
 
