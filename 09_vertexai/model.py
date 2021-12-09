@@ -30,6 +30,16 @@ NUM_EMBEDS = 3
 TRAIN_BATCH_SIZE = 64
 DNN_HIDDEN_UNITS = '64,32'
 
+CSV_COLUMNS = (
+    'ontime,dep_delay,taxi_out,distance,origin,dest,dep_hour,is_weekday,carrier,' +
+    'dep_airport_lat,dep_airport_lon,arr_airport_lat,arr_airport_lon,data_split'
+).split(',')
+
+CSV_COLUMN_TYPES = [
+    1.0, -3.0, 5.0, 1037.493622678299, 'OTH', 'DEN', 21, 1.0, 'OO',
+    43.41694444, -124.24694444, 39.86166667, -104.67305556, 'TRAIN'
+]
+
 
 def features_and_labels(features):
     label = features.pop('ontime')  # this is what we will train for
@@ -39,6 +49,8 @@ def features_and_labels(features):
 def read_dataset(pattern, batch_size, mode=tf.estimator.ModeKeys.TRAIN, truncate=None):
     dataset = tf.data.experimental.make_csv_dataset(
         pattern, batch_size,
+        column_names=CSV_COLUMNS,
+        column_defaults=CSV_COLUMN_TYPES,
         sloppy=True,
         num_parallel_reads=2,
         ignore_errors=True,

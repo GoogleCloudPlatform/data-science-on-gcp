@@ -22,7 +22,9 @@ CHANGES = [
     ("ENDPOINT_NAME = 'flights'", "ENDPOINT_NAME = 'flights-ch10'"),
 
     # model.py
-    ("arr_airport_lat,arr_airport_lon", "arr_airport_lat,arr_airport_lon,avg_dep_delay,avg_taxi_out")
+    ("arr_airport_lat,arr_airport_lon", "arr_airport_lat,arr_airport_lon,avg_dep_delay,avg_taxi_out"),
+    ("43.41694444, -124.24694444, 39.86166667, -104.67305556, 'TRAIN'",
+     "43.41694444, -124.24694444, 39.86166667, -104.67305556, -3.0, 5.0, 'TRAIN'")
 ]
 
 for filename in ['train_on_vertexai.py', 'model.py']:
