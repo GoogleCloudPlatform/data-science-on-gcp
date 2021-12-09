@@ -24,10 +24,14 @@ CHANGES = [
     # model.py
     ("arr_airport_lat,arr_airport_lon", "arr_airport_lat,arr_airport_lon,avg_dep_delay,avg_taxi_out"),
     ("43.41694444, -124.24694444, 39.86166667, -104.67305556, 'TRAIN'",
-     "43.41694444, -124.24694444, 39.86166667, -104.67305556, -3.0, 5.0, 'TRAIN'")
+     "43.41694444, -124.24694444, 39.86166667, -104.67305556, -3.0, 5.0, 'TRAIN'"),
+
+    # call_predict.py
+    ('"carrier": "AS"', '"carrier": "AS", "avg_dep_delay": -3.0, "avg_taxi_out": 5.0'),
+    ('"carrier": "HA"', '"carrier": "HA", "avg_dep_delay": 3.0, "avg_taxi_out": 8.0'),
 ]
 
-for filename in ['train_on_vertexai.py', 'model.py']:
+for filename in ['train_on_vertexai.py', 'model.py', 'call_predict.py']:
     in_filename = os.path.join('../09_vertexai', filename)
     with open(in_filename, "r") as ifp:
         with open(filename, "w") as ofp:
