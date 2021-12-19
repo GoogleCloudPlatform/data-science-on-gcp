@@ -54,14 +54,14 @@ cd ../03_sqlstudio
 * Read/write to Cloud:
 	```
     ./stage_airports_file.sh BUCKETNAME
-	./df06.py --project PROJECT --bucket BUCKETNAME --region us-central1
+	./df06.py --project PROJECT --bucket BUCKETNAME
 	``` 
     Look for new tables in BigQuery (flights_simevents)
 * Run on Cloud:
 	```
 	./df07.py --project PROJECT --bucket BUCKETNAME --region us-central1
 	``` 
-* Go to the GCP web console and wait for the Dataflow ch04timecorr job to finish. It might take several  
+* Go to the GCP web console and wait for the Dataflow ch04timecorr job to finish. It might take between 30 minutes and 2+ hours depending on the quota associated with your project (you can change the quota by going to https://console.cloud.google.com/iam-admin/quotas).
 * Then, navigate to the BigQuery console and type in:
 	```
         SELECT
@@ -114,10 +114,9 @@ cd ../03_sqlstudio
 	``` 
 * Look at how often the data is coming in:
 	```
-    SELECT EVENT_TIME, SUM(num_flights) AS num_flights 
+    SELECT END_TIME, num_flights
     FROM dsongcp.streaming_delays
-    GROUP BY EVENT_TIME
-    ORDER BY EVENT_TIME DESC
+    ORDER BY END_TIME DESC
     LIMIT 5
 	``` 
 * It's likely that the pipeline will be stuck. You need to run this on Dataflow.

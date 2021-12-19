@@ -60,7 +60,7 @@ Once you are done, delete the Cloud SQL instance since you will not need it for 
   ```./create_views.sh```
 * Compute the contingency table for various thresholds by running the script 
   ```
-  ./contingency.sh.
+  ./contingency.sh
   ```
 
 ### Building a dashboard

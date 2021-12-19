@@ -113,7 +113,7 @@ def create_features_and_label(event, for_training):
         if for_training:
             model_input.update({
                 # training data split
-                'data_split': get_data_split_2019(event['FL_DATE'])
+                'data_split': get_data_split(event['FL_DATE'])
             })
         else:
             model_input.update({
