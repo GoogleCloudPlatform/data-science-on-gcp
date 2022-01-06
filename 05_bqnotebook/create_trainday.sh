@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "$#" -ne 1 ]; then
-    echo "Usage: ./ingest_from_crsbucket.sh  destination-bucket-name"
+    echo "Usage: ./create_trainday.sh  destination-bucket-name"
     exit
 fi
 
