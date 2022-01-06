@@ -36,9 +36,9 @@ If you didn't go through Chapters 2-9, the simplest way to catch up is to copy d
   ```
     python3 create_traindata.py --input bigquery --project <PROJECT> --bucket <BUCKET> --region <REGION>
   ```
-* Copy over the Ch9 model.py and train_on_vertexai.py files and make the necessary changes:
+* Copy over the Ch10 model.py and train_on_vertexai.py files and make the necessary changes:
   ```
-  python3 change_ch9_files.py
+  python3 change_ch10_files.py
   ```
 * [Optional] Train an AutoML model on the enriched dataset:
   ```

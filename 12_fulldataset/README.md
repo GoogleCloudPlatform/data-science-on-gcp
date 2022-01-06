@@ -40,12 +40,13 @@ There is a reason why I have worked with only 1 year of data so far in the book.
   * [2 min] Copy the full training data set from my bucket:
       ```
       gsutil cp \
-         gs://data-science-on-gcp/edition2/ch10_fulldataset/all-00000-of-00001.csv \
-         gs://$BUCKET/ch10/data/all-00000-of-00001.csv
+         gs://data-science-on-gcp/edition2/ch12_fulldataset/all-00000-of-00001.csv \
+         gs://$BUCKET/ch11/data/all-00000-of-00001.csv
       ```
  
 * [5 hr] Train AutoML model so that we have evaluation statistics in BigQuery:
   ```
+  cd 11_realtime
   python3 train_on_vertexai.py --automl --project $PROJECT --bucket $BUCKET --region $REGION
   ```
 * Open the notebook evaluation.ipynb in Vertex Workbench and run the cells.
