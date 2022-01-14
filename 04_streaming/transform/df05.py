@@ -87,7 +87,7 @@ def tz_correct(fields, airport_timezones):
         fields["ARR_AIRPORT_TZOFFSET"] = arrtz
         yield fields
     except KeyError as e:
-        logging.exception(" Ignoring " + line + " because airport is not known")
+        logging.exception(f"Ignoring {fields} because airport is not known")
 
 
 def get_next_event(fields):

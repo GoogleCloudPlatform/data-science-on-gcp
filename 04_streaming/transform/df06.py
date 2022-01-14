@@ -19,6 +19,7 @@ import logging
 import csv
 import json
 
+
 DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
 
 
@@ -88,6 +89,9 @@ def tz_correct(fields, airport_timezones):
         fields["ARR_AIRPORT_LON"] = airport_timezones[arr_airport_id][1]
         fields["ARR_AIRPORT_TZOFFSET"] = arrtz
         yield fields
+    except KeyError:
+        #logging.exception(f"Ignoring {fields} because airport is not known")
+        pass
 
     except KeyError:
         logging.exception("Ignoring field because airport is not known")
@@ -149,34 +153,59 @@ def run(project, bucket):
          | 'flights:tostring' >> beam.Map(lambda fields: json.dumps(fields))
          | 'flights:gcsout' >> beam.io.textio.WriteToText(flights_output)
          )
-
+        
         flights_schema = ','.join([
-            'FL_DATE:date,UNIQUE_CARRIER:string,ORIGIN_AIRPORT_SEQ_ID:string,ORIGIN:string',
-            'DEST_AIRPORT_SEQ_ID:string,DEST:string,CRS_DEP_TIME:timestamp,DEP_TIME:timestamp',
-            'DEP_DELAY:float,TAXI_OUT:float,WHEELS_OFF:timestamp,WHEELS_ON:timestamp,TAXI_IN:float',
-            'CRS_ARR_TIME:timestamp,ARR_TIME:timestamp,ARR_DELAY:float,CANCELLED:boolean',
-            'DIVERTED:boolean,DISTANCE:float',
-            'DEP_AIRPORT_LAT:float,DEP_AIRPORT_LON:float,DEP_AIRPORT_TZOFFSET:float',
-            'ARR_AIRPORT_LAT:float,ARR_AIRPORT_LON:float,ARR_AIRPORT_TZOFFSET:float'])
-        flights | 'flights:bqout' >> beam.io.WriteToBigQuery(
-            'dsongcp.flights_tzcorr', schema=flights_schema,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+            'FL_DATE:date',
+            'UNIQUE_CARRIER:string',
+            'ORIGIN_AIRPORT_SEQ_ID:string',
+            'ORIGIN:string',
+            'DEST_AIRPORT_SEQ_ID:string',
+            'DEST:string',
+            'CRS_DEP_TIME:timestamp',
+            'DEP_TIME:timestamp',
+            'DEP_DELAY:float',
+            'TAXI_OUT:float',
+            'WHEELS_OFF:timestamp',
+            'WHEELS_ON:timestamp',
+            'TAXI_IN:float',
+            'CRS_ARR_TIME:timestamp',
+            'ARR_TIME:timestamp',
+            'ARR_DELAY:float',
+            'CANCELLED:boolean',
+            'DIVERTED:boolean',
+            'DISTANCE:float',
+            'DEP_AIRPORT_LAT:float',
+            'DEP_AIRPORT_LON:float',
+            'DEP_AIRPORT_TZOFFSET:float',
+            'ARR_AIRPORT_LAT:float',
+            'ARR_AIRPORT_LON:float',
+            'ARR_AIRPORT_TZOFFSET:float',
+            'Year:string'])
+        
+        # autodetect on JSON works, but is less reliable
+        #flights_schema = 'SCHEMA_AUTODETECT'
+        
+        (flights 
+         | 'flights:bqout' >> beam.io.WriteToBigQuery(
+                'dsongcp.flights_tzcorr', 
+                schema=flights_schema,
+                write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+                )
         )
-
+        
         events = flights | beam.FlatMap(get_next_event)
         events_schema = ','.join([flights_schema, 'EVENT_TYPE:string,EVENT_TIME:timestamp,EVENT_DATA:string'])
 
         (events
          | 'events:totablerow' >> beam.Map(lambda fields: create_event_row(fields))
          | 'events:bqout' >> beam.io.WriteToBigQuery(
-                    'dsongcp.flights_simevents', schema=events_schema,
-                    write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-                    create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+                'dsongcp.flights_simevents', schema=events_schema,
+                write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED
                 )
-         )
-
-
+        )
+        
 if __name__ == '__main__':
     import argparse
 
