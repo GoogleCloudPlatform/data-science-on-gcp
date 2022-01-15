@@ -24,7 +24,7 @@ bq --project_id $PROJECT \
   load --source_format=NEWLINE_DELIMITED_JSON --autodetect ${PROJECT}:dsongcp.flights_tzcorr \
   ${TO}/all_flights-*
 
-
+cd transform
 
 # airports.csv
 ./stage_airports_file.sh ${BUCKET}

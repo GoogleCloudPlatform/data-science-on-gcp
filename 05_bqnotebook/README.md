@@ -11,6 +11,7 @@ If you didn't go through Chapters 2-4, the simplest way to catch up is to copy d
     ```
     cd data-science-on-gcp/02_ingest
     ./ingest_from_crsbucket bucketname
+    ./bqload.sh  (csv-bucket-name) YEAR 
     ```
 * Run:
     ```
