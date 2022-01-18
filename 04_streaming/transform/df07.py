@@ -67,7 +67,7 @@ def airport_timezone(airport_id, airport_timezones):
     if airport_id in airport_timezones:
         return airport_timezones[airport_id]
     else:
-        return '37.52', '-92.17', u'America/Chicago'
+        return '37.41', '-92.35', u'America/Chicago'
 
 
 def tz_correct(fields, airport_timezones):
