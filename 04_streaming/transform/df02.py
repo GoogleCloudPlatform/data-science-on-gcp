@@ -17,25 +17,27 @@
 import apache_beam as beam
 import csv
 
+
 def addtimezone(lat, lon):
-   try:
-      import timezonefinder
-      tf = timezonefinder.TimezoneFinder()
-      tz = tf.timezone_at(lng=float(lon), lat=float(lat))
-      if tz is None:
-         tz = 'UTC'
-      return (lat, lon, tz)
-   except ValueError:
-      return (lat, lon, 'TIMEZONE') # header
+    try:
+        import timezonefinder
+        tf = timezonefinder.TimezoneFinder()
+        tz = tf.timezone_at(lng=float(lon), lat=float(lat))
+        if tz is None:
+            tz = 'UTC'
+        return lat, lon, tz
+    except ValueError:
+        return lat, lon, 'TIMEZONE'  # header
+
 
 if __name__ == '__main__':
-   with beam.Pipeline('DirectRunner') as pipeline:
+    with beam.Pipeline('DirectRunner') as pipeline:
+        airports = (pipeline
+                    | beam.io.ReadFromText('airports.csv.gz')
+                    | beam.Filter(lambda line: "United States" in line)
+                    | beam.Map(lambda line: next(csv.reader([line])))
+                    | beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
+                    )
 
-      airports = (pipeline
-         | beam.io.ReadFromText('airports.csv.gz')
-         | beam.Filter(lambda line: "United States" in line)
-         | beam.Map(lambda line: next(csv.reader([line])))
-         | beam.Map(lambda fields: (fields[0], addtimezone(fields[21], fields[26])))
-      )
-
-      airports | beam.Map(lambda f: '{},{}'.format(f[0], ','.join(f[1])) )| beam.io.textio.WriteToText('airports_with_tz')
+        airports | beam.Map(lambda f: '{},{}'.format(f[0], ','.join(f[1]))) | beam.io.textio.WriteToText(
+            'airports_with_tz')
