@@ -100,7 +100,8 @@ class CustomCommands(setuptools.Command):
 REQUIRED_PACKAGES = [
     'pyfarmhash',
     'google-cloud-aiplatform',
-    'cloudml-hypertune'
+    'cloudml-hypertune',
+     'dill==0.3.1.1'
 ]
 
 
