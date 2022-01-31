@@ -49,7 +49,7 @@ def run(project, bucket, region, input):
             '--temp_location=gs://{0}/flights/temp/'.format(bucket),
             '--setup_file=./setup.py',
             '--autoscaling_algorithm=THROUGHPUT_BASED',
-            '--max_num_workers=40',
+            '--max_num_workers=20',
             # '--max_num_workers=4', '--worker_machine_type=m1-ultramem-40', '--disk_size_gb=500',  # for full 2015-2019 dataset
             '--region={}'.format(region),
             '--runner=DataflowRunner'
