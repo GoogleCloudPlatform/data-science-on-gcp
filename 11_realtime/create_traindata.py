@@ -43,13 +43,13 @@ def run(project, bucket, region, input):
         logging.info('Running in the cloud on full dataset input={}'.format(input))
         argv = [
             '--project={0}'.format(project),
-            '--job_name=ch10traindata',
+            '--job_name=ch11traindata',
             # '--save_main_session', # not needed as we are running as a package now
             '--staging_location=gs://{0}/flights/staging/'.format(bucket),
             '--temp_location=gs://{0}/flights/temp/'.format(bucket),
             '--setup_file=./setup.py',
             '--autoscaling_algorithm=THROUGHPUT_BASED',
-            '--max_num_workers=20',
+            '--max_num_workers=66',
             # '--max_num_workers=4', '--worker_machine_type=m1-ultramem-40', '--disk_size_gb=500',  # for full 2015-2019 dataset
             '--region={}'.format(region),
             '--runner=DataflowRunner'
