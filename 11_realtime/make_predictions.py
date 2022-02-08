@@ -61,7 +61,7 @@ class FlightsModelInvoker(beam.DoFn):
 
     def setup(self):
         from google.cloud import aiplatform
-        endpoint_name = 'flights-ch10'
+        endpoint_name = 'flights-ch11'
         endpoints = aiplatform.Endpoint.list(
             filter='display_name="{}"'.format(endpoint_name),
             order_by='create_time desc'
@@ -111,7 +111,7 @@ def run(project, bucket, region, source, sink):
         if source == 'pubsub':
             logging.info("Turning on streaming. Cancel the pipeline from GCP console")
             argv += ['--streaming']
-        flights_output = 'gs://{}/flights/ch10/predictions'.format(bucket)
+        flights_output = 'gs://{}/flights/ch11/predictions'.format(bucket)
 
     with beam.Pipeline(argv=argv) as pipeline:
 
@@ -202,7 +202,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Create training CSV file that includes time-aggregate features')
     parser.add_argument('-p', '--project', help='Project to be billed for Dataflow/BigQuery', required=True)
-    parser.add_argument('-b', '--bucket', help='Training data will be written to gs://BUCKET/flights/ch10/')
+    parser.add_argument('-b', '--bucket', help='data will be read from written to gs://BUCKET/flights/ch11/')
     parser.add_argument('-r', '--region', help='Region to run Dataflow job. Choose the same region as your bucket.')
     parser.add_argument('-i', '--input', help='local, bigquery OR pubsub', required=True)
     parser.add_argument('-o', '--output', help='file, bigquery OR bigtable', default='file')

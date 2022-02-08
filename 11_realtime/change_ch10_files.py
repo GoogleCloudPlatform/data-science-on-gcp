@@ -19,7 +19,7 @@ CHANGES = [
     ("ch9", "ch11"),
 
     # train_on_vertexai.py
-    ("ENDPOINT_NAME = 'flights'", "ENDPOINT_NAME = 'flights-ch10'"),
+    ("ENDPOINT_NAME = 'flights'", "ENDPOINT_NAME = 'flights-ch11'"),
 
     # model.py
     ("arr_airport_lat,arr_airport_lon", "arr_airport_lat,arr_airport_lon,avg_dep_delay,avg_taxi_out"),
