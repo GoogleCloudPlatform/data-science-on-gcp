@@ -5,21 +5,33 @@
 
 ### Populate your bucket with the data you will need for the book
 The simplest way to get the files you need is to copy it from my bucket:
+* Open CloudShell and git clone this repo:
+    ```
+    git clone https://github.com/GoogleCloudPlatform/data-science-on-gcp
+    ```
 * Go to the 02_ingest folder of the repo
 * Run the program ./ingest_from_crsbucket.sh and specify your bucket name.
 
 Alternately, you can ingest from the original source of the data and carry out the cleanup steps as described in the text:
 * Go to the 02_ingest folder of the repo
-* Change the BUCKET variable in upload.sh
-* Execute ./ingest.sh
-* Execute monthlyupdate/ingest_flights.py specifying your bucket name, and with year of 2016 and month of 01.  Type monthlyupdate/ingest_flights.py --help to get usage help.
-This will initialize your bucket with the input files corresponding to 2015 and January 2016. These files are needed to carry out the steps that come later in this book.
+* Edit ./ingest.sh to reflect the years you want to process (at minimum, you need 2015)
+* Execute ./ingest.sh bucketname
 
 ### [Optional] Scheduling monthly downloads
 * Go to the 02_ingest/monthlyupdate folder in the repo.
-* Generate a new Personal Access Token by running ./generate_token.sh -- Note the token printed.
-* Modify main.py to have this token.</p>
-* Deploy Cloud Function in your project by running ./deploy_cf.sh -- Note the URL that is printed.
-* Try out ingest by running ./call_cf.sh supplying the necessary parameters.</p>
-* Schedule ingest by running ./setup_cron.sh supplying the necessary parameters.
-* Visit the GCP Console for Cloud Functions and Cloud Scheduler and delete the function and the scheduled task—you won’t need them any further.
+* Run the command `pip3 install google-cloud-storage google-cloud-bigquery`
+* Run the command `gcloud auth application-default login`
+* Try ingesting one month using the Python script: `./ingest_flights.py --debug --bucket your-bucket-name --year 2015 --month 02` 
+* Set up a service account called svc-monthly-ingest by running `./01_setup_svc_acct.sh`
+* Now, try running the ingest script as the service account:
+  * Visit the Service Accounts section of the GCP Console: https://console.cloud.google.com/iam-admin/serviceaccounts
+  * Select the newly created service account svc-monthly-ingest and click Manage Keys
+  * Add key (Create a new JSON key) and download it to a file named tempkey.json
+  * Run `gcloud auth activate-service-account --key-file tempkey.json`
+  * Try ingesting one month `./ingest_flights.py --bucket $BUCKET --year 2015 --month 03 --debug`
+  * Go back to running command as yourself using `gcloud auth login`
+* Deploy to Cloud Run: `./02_deploy_cr.sh`
+* Test that you can invoke the function using Cloud Run: `./03_call_cr.sh`
+* Test that the functionality to get the next month works: `./04_next_month.sh`
+* Set up a Cloud Scheduler job to invoke Cloud Run every month: `./05_setup_cron.sh`
+* Visit the GCP Console for Cloud Run and Cloud Scheduler and delete the Cloud Run instance and the scheduled task—you won’t need them any further.

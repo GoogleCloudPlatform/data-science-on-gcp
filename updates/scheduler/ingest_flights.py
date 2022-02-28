@@ -1,1 +1,0 @@
-../../02_ingest/monthlyupdate/ingest_flights.py

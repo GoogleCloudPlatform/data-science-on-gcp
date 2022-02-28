@@ -1,28 +1,46 @@
-#standardsql
 SELECT
-  ORIGIN,
-  AVG(DEP_DELAY) AS dep_delay,
-  AVG(ARR_DELAY) AS arr_delay
-FROM
-  `cloud-training-demos.flights.fedtzcorr`
-GROUP BY
-  ORIGIN
-ORDER BY
-  arr_delay DESC
+   ORIGIN,
+   AVG(DEP_DELAY) AS dep_delay,
+   AVG(ARR_DELAY) AS arr_delay,
+   COUNT(ARR_DELAY) AS num_flights
+ FROM
+   dsongcp.flights_tzcorr
+ GROUP BY
+   ORIGIN
 
+________________________________________________________________
 
-#standardsql
-SELECT
-  ORIGIN,
-  AVG(DEP_DELAY) AS dep_delay,
-  AVG(ARR_DELAY) AS arr_delay
-FROM
-  `cloud-training-demos.flights.tzcorr`
-GROUP BY
-  ORIGIN
-ORDER BY
-  arr_delay DESC
+WITH all_airports AS (
+  SELECT
+    ORIGIN,
+    AVG(DEP_DELAY) AS dep_delay,
+    AVG(ARR_DELAY) AS arr_delay,
+    COUNT(ARR_DELAY) AS num_flights
+  FROM
+    dsongcp.flights_tzcorr
+  GROUP BY
+    ORIGIN
+)
+ 
+SELECT * FROM all_airports WHERE num_flights > 3650
+ORDER BY dep_delay DESC
 
+________________________________________________________________
 
+WITH all_airports AS (
+  SELECT
+    ORIGIN,
+    AVG(DEP_DELAY) AS dep_delay,
+    AVG(ARR_DELAY) AS arr_delay,
+    COUNT(ARR_DELAY) AS num_flights
+  FROM
+    dsongcp.flights_tzcorr
+  WHERE EXTRACT(MONTH FROM FL_DATE) = 1
+  GROUP BY
+    ORIGIN
+)
 
+SELECT * FROM all_airports WHERE num_flights > 310
+ORDER BY dep_delay DESC
 
+________________________________________________________________
