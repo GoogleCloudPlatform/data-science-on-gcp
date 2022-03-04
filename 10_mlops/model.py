@@ -189,6 +189,7 @@ def train_and_evaluate(train_data_pattern, eval_data_pattern, test_data_pattern,
 
     # train the model
     model = create_model()
+    logging.info(f"Training on {train_data_pattern}; eval on {eval_data_pattern}; {epochs} epochs; {steps_per_epoch}")
     history = model.fit(train_dataset,
                         validation_data=eval_dataset,
                         epochs=epochs,
@@ -308,6 +309,8 @@ if __name__ == '__main__':
                                         'export/flights_{}'.format(time.strftime("%Y%m%d-%H%M%S")))
     if not TRAIN_DATA_PATTERN:
         TRAIN_DATA_PATTERN = 'gs://{}/ch9/data/train*'.format(BUCKET)
+        CSV_COLUMNS.pop()  # the data_split column won't exist
+        CSV_COLUMN_TYPES.pop()  # the data_split column won't exist
     if not EVAL_DATA_PATTERN:
         EVAL_DATA_PATTERN = 'gs://{}/ch9/data/eval*'.format(BUCKET)
     logging.info('Exporting trained model to {}'.format(OUTPUT_MODEL_DIR))

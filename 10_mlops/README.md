@@ -14,10 +14,12 @@ If you didn't go through Chapters 2-7, the simplest way to catch up is to copy d
 	```
 	bash create_trainday.sh <BUCKET-NAME>
 	```
- 
+* In this (10_mlops) folder, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
+    
 ## This Chapter
 
 In CloudShell, do the following steps:
+
 * Install the aiplatform library
     ```
     pip3 install google-cloud-aiplatform cloudml-hypertune kfp
