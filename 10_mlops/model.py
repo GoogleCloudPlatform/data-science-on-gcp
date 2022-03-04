@@ -32,12 +32,12 @@ DNN_HIDDEN_UNITS = '64,32'
 
 CSV_COLUMNS = (
     'ontime,dep_delay,taxi_out,distance,origin,dest,dep_hour,is_weekday,carrier,' +
-    'dep_airport_lat,dep_airport_lon,arr_airport_lat,arr_airport_lon,data_split'
+    'dep_airport_lat,dep_airport_lon,arr_airport_lat,arr_airport_lon'
 ).split(',')
 
 CSV_COLUMN_TYPES = [
     1.0, -3.0, 5.0, 1037.493622678299, 'OTH', 'DEN', 21, 1.0, 'OO',
-    43.41694444, -124.24694444, 39.86166667, -104.67305556, 'TRAIN'
+    43.41694444, -124.24694444, 39.86166667, -104.67305556
 ]
 
 
@@ -309,8 +309,6 @@ if __name__ == '__main__':
                                         'export/flights_{}'.format(time.strftime("%Y%m%d-%H%M%S")))
     if not TRAIN_DATA_PATTERN:
         TRAIN_DATA_PATTERN = 'gs://{}/ch9/data/train*'.format(BUCKET)
-        CSV_COLUMNS.pop()  # the data_split column won't exist
-        CSV_COLUMN_TYPES.pop()  # the data_split column won't exist
     if not EVAL_DATA_PATTERN:
         EVAL_DATA_PATTERN = 'gs://{}/ch9/data/eval*'.format(BUCKET)
     logging.info('Exporting trained model to {}'.format(OUTPUT_MODEL_DIR))

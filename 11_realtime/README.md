@@ -10,10 +10,8 @@ If you didn't go through Chapters 2-9, the simplest way to catch up is to copy d
     ```
 * Go to the 02_ingest folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
 * Go to the 04_streaming folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
-* Go to the 05_bqnotebook folder of the repo, run the script to load data into BigQuery:
-	```
-	bash create_trainday.sh <BUCKET-NAME>
-	```
+* Go to the 05_bqnotebook folder of the repo, run the program ./create_trainday.sh and specify your bucket name.
+* Go to the 10_mlops folder of the repo, run the program ./ingest_from_crsbucket.sh and specify your bucket name.
 
 #### From CloudShell
 * Install the Python libraries you'll need
