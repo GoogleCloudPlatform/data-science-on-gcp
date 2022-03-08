@@ -38,7 +38,9 @@ In CloudShell, do the following steps:
     ```
 * Try calling the model using bash:
     ```
-    ./call_predict.sh
+    cd ../09_vertexai
+    bash ./call_predict.sh
+    cd ../10_mlops
     ```
 * Try calling the model using Python:
     ```
