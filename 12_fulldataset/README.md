@@ -23,7 +23,7 @@ There is a reason why I have worked with only 1 year of data so far in the book.
       * Increase number of workers in df07.py to 20 or the limit of your quota
       * python3 df07.py --project $PROJECT --bucket $BUCKET --region $REGION 
     * [26 hours] Create training dataset
-      * cd ../10_realtime
+      * cd ../11_realtime
       * Edit flightstxf/create_traindata.py changing the line
         ```
         'data_split': get_data_split(event['FL_DATE'])

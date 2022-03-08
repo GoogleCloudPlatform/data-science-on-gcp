@@ -34,6 +34,18 @@ If you didn't go through Chapters 2-9, the simplest way to catch up is to copy d
   ```
     python3 create_traindata.py --input bigquery --project <PROJECT> --bucket <BUCKET> --region <REGION>
   ```
+  Note if you get an error similar to:
+  ```
+  AttributeError: Can't get attribute '_create_code' on <module 'dill._dill' from '/usr/local/lib/python3.7/site-packages/dill/_dill.py'>
+  ```
+  it is because the global version of your modules are ahead/behind of what Apache Beam on the server requires. Make sure to submit Apache Beam code to Dataflow from a pristine virtual environment that has only the modules you need:
+  ```
+  python -m venv ~/beamenv
+  source ~/beamenv/bin/activate
+  pip install apache-beam[gcp] google-cloud-aiplatform cloudml-hypertune pyfarmhash pyparsing==2.4.2
+  python3 create_traindata.py ...
+  ```
+  Note that beamenv is only for submitting to Dataflow. Run train_on_vertexai.py and other code directly in the terminal.
 * Run script that copies over the Ch10 model.py and train_on_vertexai.py files and makes the necessary changes:
   ```
   python3 change_ch10_files.py
