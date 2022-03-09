@@ -8,7 +8,7 @@ Source code accompanying book:
   <img src="cover_edition2.jpg" height="100"/>
   </td>
   <td>
-  Data Science on the Google Cloud Platform, 2nd Edition <br/>
+  <a href="https://www.amazon.com/Data-Science-Google-Cloud-Platform/dp/1098118952/">Data Science on the Google Cloud Platform, 2nd Edition</a> <br/>
   Valliappa Lakshmanan <br/>
   O'Reilly, Apr 2022
   </td>
