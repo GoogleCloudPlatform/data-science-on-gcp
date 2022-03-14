@@ -25,11 +25,15 @@ from kfp.v2 import compiler, dsl
 ENDPOINT_NAME = 'flights'
 
 
-def train_custom_model(data_set, timestamp, develop_mode, extra_args=None):
+def train_custom_model(data_set, timestamp, develop_mode, cpu_only_mode, extra_args=None):
     # Set up training and deployment infra
     tf_version = '2-' + tf.__version__[2:3]
-    train_image = "us-docker.pkg.dev/vertex-ai/training/tf-gpu.{}:latest".format(tf_version)
-    deploy_image = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.{}:latest".format(tf_version)
+    if cpu_only_mode:
+        train_image='us-docker.pkg.dev/vertex-ai/training/tf-cpu.2-6:latest'
+        deploy_image='us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-6:latest'
+    else:
+        train_image = "us-docker.pkg.dev/vertex-ai/training/tf-gpu.{}:latest".format(tf_version)
+        deploy_image = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.{}:latest".format(tf_version)
 
     # train
     model_display_name = '{}-{}'.format(ENDPOINT_NAME, timestamp)
@@ -47,20 +51,32 @@ def train_custom_model(data_set, timestamp, develop_mode, extra_args=None):
         model_args += ['--develop']
     if extra_args:
         model_args += extra_args
-
-    model = job.run(
-        dataset=data_set,
-        # See https://googleapis.dev/python/aiplatform/latest/aiplatform.html#
-        predefined_split_column_name='data_split',
-        model_display_name=model_display_name,
-        args=model_args,
-        replica_count=1,
-        machine_type='n1-standard-4',
-        # See https://cloud.google.com/vertex-ai/docs/general/locations#accelerators
-        accelerator_type=aip.AcceleratorType.NVIDIA_TESLA_T4.name,
-        accelerator_count=1,
-        sync=develop_mode
-    )
+    
+    if cpu_only_mode:
+        model = job.run(
+            dataset=data_set,
+            # See https://googleapis.dev/python/aiplatform/latest/aiplatform.html#
+            predefined_split_column_name='data_split',
+            model_display_name=model_display_name,
+            args=model_args,
+            replica_count=1,
+            machine_type='n1-standard-4',
+            sync=develop_mode
+        )
+    else:
+        model = job.run(
+            dataset=data_set,
+            # See https://googleapis.dev/python/aiplatform/latest/aiplatform.html#
+            predefined_split_column_name='data_split',
+            model_display_name=model_display_name,
+            args=model_args,
+            replica_count=1,
+            machine_type='n1-standard-4',
+            # See https://cloud.google.com/vertex-ai/docs/general/locations#accelerators
+            accelerator_type=aip.AcceleratorType.NVIDIA_TESLA_T4.name,
+            accelerator_count=1,
+            sync=develop_mode
+        )
     return model
 
 
@@ -87,30 +103,49 @@ def train_automl_model(data_set, timestamp, develop_mode):
     return model
 
 
-def do_hyperparameter_tuning(data_set, timestamp, develop_mode):
+def do_hyperparameter_tuning(data_set, timestamp, develop_mode, cpu_only_mode):
     # Vertex AI services require regional API endpoints.
     tf_version = '2-' + tf.__version__[2:3]
-    train_image = "us-docker.pkg.dev/vertex-ai/training/tf-gpu.{}:latest".format(tf_version)
+    if cpu_only_mode:
+        train_image='us-docker.pkg.dev/vertex-ai/training/tf-cpu.2-6:latest'
+    else: 
+        train_image = "us-docker.pkg.dev/vertex-ai/training/tf-gpu.{}:latest".format(tf_version)
 
     # a single trial job
     model_display_name = '{}-{}'.format(ENDPOINT_NAME, timestamp)
-    trial_job = aiplatform.CustomJob.from_local_script(
-        display_name='train-{}'.format(model_display_name),
-        script_path="model.py",
-        container_uri=train_image,
-        args=[
-            '--bucket', BUCKET,
-            '--skip_full_eval',  # no need to evaluate on test data set
-            '--num_epochs', '10',
-            '--num_examples', '500000'  # 1/10 actual size to finish faster
-        ],
-        requirements=['cloudml-hypertune'],  # any extra Python packages
-        replica_count=1,
-        machine_type='n1-standard-4',
-        # See https://cloud.google.com/vertex-ai/docs/general/locations#accelerators
-        accelerator_type=aip.AcceleratorType.NVIDIA_TESLA_T4.name,
-        accelerator_count=1,
-    )
+    if cpu_only_mode:
+        trial_job = aiplatform.CustomJob.from_local_script(
+            display_name='train-{}'.format(model_display_name),
+            script_path="model.py",
+            container_uri=train_image,
+            args=[
+                '--bucket', BUCKET,
+                '--skip_full_eval',  # no need to evaluate on test data set
+                '--num_epochs', '10',
+                '--num_examples', '500000'  # 1/10 actual size to finish faster
+            ],
+            requirements=['cloudml-hypertune'],  # any extra Python packages
+            replica_count=1,
+            machine_type='n1-standard-4'
+        )
+    else:
+        trial_job = aiplatform.CustomJob.from_local_script(
+            display_name='train-{}'.format(model_display_name),
+            script_path="model.py",
+            container_uri=train_image,
+            args=[
+                '--bucket', BUCKET,
+                '--skip_full_eval',  # no need to evaluate on test data set
+                '--num_epochs', '10',
+                '--num_examples', '500000'  # 1/10 actual size to finish faster
+            ],
+            requirements=['cloudml-hypertune'],  # any extra Python packages
+            replica_count=1,
+            machine_type='n1-standard-4',
+            # See https://cloud.google.com/vertex-ai/docs/general/locations#accelerators
+            accelerator_type=aip.AcceleratorType.NVIDIA_TESLA_T4.name,
+            accelerator_count=1,
+        )
 
     # the tuning job
     hparam_job = aiplatform.HyperparameterTuningJob(
@@ -147,7 +182,7 @@ def do_hyperparameter_tuning(data_set, timestamp, develop_mode):
 
     # run the best trial to completion
     logging.info('Launching full training job with {}'.format(best_params))
-    return train_custom_model(data_set, timestamp, develop_mode, extra_args=best_params)
+    return train_custom_model(data_set, timestamp, develop_mode, cpu_only_mode, extra_args=best_params)
 
 
 @dsl.pipeline(name="flights-ch9-pipeline",
@@ -168,9 +203,9 @@ def main():
     if AUTOML:
         model = train_automl_model(data_set, TIMESTAMP, DEVELOP_MODE)
     elif NUM_HPARAM_TRIALS > 1:
-        model = do_hyperparameter_tuning(data_set, TIMESTAMP, DEVELOP_MODE)
+        model = do_hyperparameter_tuning(data_set, TIMESTAMP, DEVELOP_MODE, CPU_ONLY_MODE)
     else:
-        model = train_custom_model(data_set, TIMESTAMP, DEVELOP_MODE)
+        model = train_custom_model(data_set, TIMESTAMP, DEVELOP_MODE, CPU_ONLY_MODE)
 
     # create endpoint if it doesn't already exist
     endpoints = aiplatform.Endpoint.list(
@@ -253,6 +288,12 @@ if __name__ == '__main__':
         help='Run as pipeline',
         dest='pipeline',
         action='store_true')
+    parser.add_argument(
+        '--cpuonly',
+        help='Run without GPU',
+        dest='cpuonly',
+        action='store_true')
+    parser.set_defaults(cpuonly=False)
 
     # parse args
     logging.getLogger().setLevel(logging.INFO)
@@ -261,6 +302,7 @@ if __name__ == '__main__':
     PROJECT = args['project']
     REGION = args['region']
     DEVELOP_MODE = args['develop']
+    CPU_ONLY_MODE = args['cpuonly']
     AUTOML = args['automl']
     NUM_HPARAM_TRIALS = args['num_hparam_trials']
     TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
