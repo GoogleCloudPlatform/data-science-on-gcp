@@ -10,7 +10,7 @@ If you have not already done so, load the raw data into a BigQuery dataset:
 * Then, run:
     ```
     cd data-science-on-gcp/02_ingest
-    ./ingest_from_crsbucket bucketname
+    ./ingest_from_crsbucket.sh bucketname
     ```
 
 
