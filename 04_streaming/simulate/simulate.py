@@ -75,12 +75,13 @@ if __name__ == '__main__':
    parser.add_argument('--project', help='your project id, to create pubsub topic', required=True)
    parser.add_argument('--speedFactor', help='Example: 60 implies 1 hour of data sent to Cloud Pub/Sub in 1 minute', required=True, type=float)
    parser.add_argument('--jitter', help='type of jitter to add: None, uniform, exp  are the three options', default='None')
+   parser.add_argument('--tableName', help='Big Query table name e.g. mydatasetname.mytable', default='dsongcp.flights_simevents')
 
    # set up BigQuery bqclient
    logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
    args = parser.parse_args()
    bqclient = bq.Client(args.project)
-   bqclient.get_table('dsongcp.flights_simevents')  # throws exception on failure
+   bqclient.get_table(args.tableName)  # throws exception on failure
 
    # jitter?
    if args.jitter == 'exp':
