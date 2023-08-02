@@ -18,7 +18,7 @@ gsutil cp /tmp/install_on_cluster.sh $INSTALL
 # create cluster
 gcloud dataproc clusters create ch6cluster \
   --enable-component-gateway \
-  --region ${REGION} --zone ${REGION}-a \
+  --region ${REGION} \
   --master-machine-type n1-standard-4 \
   --master-boot-disk-size 500 --num-workers 2 \
   --worker-machine-type n1-standard-4 \
