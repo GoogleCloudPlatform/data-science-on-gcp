@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python3
 # Copyright 2016-2021 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,20 +24,31 @@ app = Flask(__name__)
 
 @app.route("/", methods=['POST'])
 def ingest_flights():
+    """Flask endpoint to ingest flight data from BTS to GCS and BigQuery.
+    
+    Accepts POST requests with JSON payload containing year, month, and bucket.
+    If year or month are not provided, it will automatically fetch the next month's data.
+    
+    JSON Parameters:
+        year (str, optional): Year as string, e.g., '2015'.
+        month (str, optional): Month as string, e.g., '01' for January.
+        bucket (str, required): GCS bucket name for storage.
+        
+    Returns:
+        str: Success message with row count and table reference, or error message.
+    """
     # noinspection PyBroadException
     try:
         logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
-        json = request.get_json(force=True) # https://stackoverflow.com/questions/53216177/http-triggering-cloud-function-with-cloud-scheduler/60615210#60615210
-
+        json = request.get_json(force=True)  # https://stackoverflow.com/questions/53216177/http-triggering-cloud-function-with-cloud-scheduler/60615210#60615210
         year = escape(json['year']) if 'year' in json else None
         month = escape(json['month']) if 'month' in json else None
         bucket = escape(json['bucket'])  # required
-
         if year is None or month is None or len(year) == 0 or len(month) == 0:
             year, month = next_month(bucket)
-        logging.debug('Ingesting year={} month={}'.format(year, month))
+        logging.debug(f'Ingesting year={year} month={month}')
         tableref, numrows = ingest(year, month, bucket)
-        ok = 'Success ... ingested {} rows to {}'.format(numrows, tableref)
+        ok = f'Success ... ingested {numrows} rows to {tableref}'
         logging.info(ok)
         return ok
     except Exception as e:
