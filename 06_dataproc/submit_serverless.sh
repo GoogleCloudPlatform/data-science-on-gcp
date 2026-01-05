@@ -12,7 +12,7 @@ REGION=$2
 # for private Google access
 # https://cloud.google.com/vpc/docs/configure-private-google-access#config-pga
 
-gsutil cp bayes_on_spark.py gs://$BUCKET/
+gcloud storage cp bayes_on_spark.py gs://$BUCKET/
 
 gcloud beta dataproc batches submit pyspark \
    --project=$(gcloud config get-value project) \

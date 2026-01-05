@@ -11,10 +11,10 @@ PYSPARK=$3
 
 OUTDIR=gs://$BUCKET/flights/sparkmloutput
 
-gsutil -m rm -r $OUTDIR
+gcloud storage rm --recursive $OUTDIR
 
 # submit to existing cluster
-gsutil cp $PYSPARK $OUTDIR/$PYSPARK
+gcloud storage cp $PYSPARK $OUTDIR/$PYSPARK
 gcloud dataproc jobs submit pyspark \
    --cluster ch7cluster --region $REGION \
    $OUTDIR/$PYSPARK \

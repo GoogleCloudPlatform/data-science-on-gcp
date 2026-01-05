@@ -15,4 +15,4 @@ bq --project_id=$PROJECT query --destination_table dsongcp.flights_sample --repl
 bq --project_id=$PROJECT extract --destination_format=NEWLINE_DELIMITED_JSON \
    dsongcp.flights_sample  gs://${BUCKET}/flights/ch4/flights_sample.json
 
-gsutil cp gs://${BUCKET}/flights/ch4/flights_sample.json .
+gcloud storage cp gs://${BUCKET}/flights/ch4/flights_sample.json .

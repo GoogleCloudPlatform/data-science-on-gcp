@@ -13,7 +13,7 @@ INSTALL=gs://$BUCKET/flights/dataproc/install_on_cluster.sh
 
 # upload install file
 sed "s/CHANGE_TO_USER_NAME/dataproc/g" install_on_cluster.sh > /tmp/install_on_cluster.sh
-gsutil cp /tmp/install_on_cluster.sh $INSTALL
+gcloud storage cp /tmp/install_on_cluster.sh $INSTALL
 
 # create cluster
 gcloud dataproc clusters create ch6cluster \
@@ -26,4 +26,3 @@ gcloud dataproc clusters create ch6cluster \
   --optional-components JUPYTER --project $PROJECT \
   --initialization-actions=$INSTALL \
   --scopes https://www.googleapis.com/auth/cloud-platform
-
