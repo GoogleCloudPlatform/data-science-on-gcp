@@ -27,7 +27,7 @@ If you have not already done so, load the raw data into a BigQuery dataset:
   * Click Create Instance
 *  Type (change bucket as necessary):
   ```
-   gsutil cp create_table.sql \
+   gcloud storage cp create_table.sql \
     gs://cloud-training-demos-ml/flights/ch3/create_table.sql
   ```
 * Create empty table using web console:
@@ -65,4 +65,3 @@ Once you are done, delete the Cloud SQL instance since you will not need it for 
 
 ### Building a dashboard
 Follow the steps in the main text of the chapter to set up a Data Studio dashboard and create charts.
-

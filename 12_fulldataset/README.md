@@ -5,7 +5,7 @@ Note that this will take many hours and require significant resources.
 There is a reason why I have worked with only 1 year of data so far in the book.
 * [5 min] Erase the current contents of your bucket and BigQuery dataset:
   ```
-  gsutil -m rm -rf gs://BUCKET/*
+  gcloud storage rm --recursive --continue-on-error gs://BUCKET/*
   bq rm -r -f dsongcp
   ```
 * [28h or 2 min] Create Training Dataset OR Copy it from my bucket
@@ -39,7 +39,7 @@ There is a reason why I have worked with only 1 year of data so far in the book.
         ```
   * [2 min] Copy the full training data set from my bucket:
       ```
-      gsutil cp \
+      gcloud storage cp \
          gs://data-science-on-gcp/edition2/ch12_fulldataset/all-00000-of-00001.csv \
          gs://$BUCKET/ch11/data/all-00000-of-00001.csv
       ```

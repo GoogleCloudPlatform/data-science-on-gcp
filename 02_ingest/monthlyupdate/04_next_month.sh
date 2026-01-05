@@ -11,8 +11,8 @@ echo $URL
 
 # next month
 echo "Getting month that follows ... (removing 12 if needed, so there is something to get) "
-gsutil rm -rf gs://$BUCKET/flights/raw/201512.csv.gz
-gsutil ls gs://$BUCKET/flights/raw
+gcloud storage rm --recursive --continue-on-error gs://$BUCKET/flights/raw/201512.csv.gz
+gcloud storage ls gs://$BUCKET/flights/raw
 echo {\"bucket\":\"${BUCKET}\"\} > /tmp/message
 cat /tmp/message
 

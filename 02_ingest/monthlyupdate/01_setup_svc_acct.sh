@@ -6,14 +6,14 @@ BUCKET=${PROJECT_ID}-cf-staging
 REGION=us-central1
 SVC_PRINCIPAL=serviceAccount:${SVC_ACCT}@${PROJECT_ID}.iam.gserviceaccount.com
 
-gsutil ls gs://$BUCKET || gsutil mb -l $REGION gs://$BUCKET
-gsutil uniformbucketlevelaccess set on gs://$BUCKET
+gcloud storage ls gs://$BUCKET || gcloud storage buckets create gs://$BUCKET --location=$REGION
+gcloud storage buckets update --uniform-bucket-level-access gs://$BUCKET
 
 gcloud iam service-accounts create $SVC_ACCT --display-name "flights monthly ingest"
 
 # make the service account the admin of the bucket
 # it can read/write/list/delete etc. on only this bucket
-gsutil iam ch ${SVC_PRINCIPAL}:roles/storage.admin gs://$BUCKET
+gcloud storage buckets add-iam-policy-binding gs://$BUCKET --member ${SVC_PRINCIPAL} --role roles/storage.admin
 
 # ability to create/delete partitions etc in BigQuery table
 bq --project_id=${PROJECT_ID} query --nouse_legacy_sql \

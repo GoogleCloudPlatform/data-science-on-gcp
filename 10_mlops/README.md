@@ -61,7 +61,7 @@ Some of the content in this chapter was published as blog posts (links below).
 
 To try out the code in the articles without going through the chapter, copy the necessary data to your bucket:
   ```
-  gsutil cp gs://data-science-on-gcp/edition2/ch9/data/all.csv gs://BUCKET/ch9/data/all.csv
+  gcloud storage cp gs://data-science-on-gcp/edition2/ch9/data/all.csv gs://BUCKET/ch9/data/all.csv
 ```
 
 Now you will be able to run model.py and train_on_vertexai.py as in the directions above.
@@ -69,5 +69,4 @@ Now you will be able to run model.py and train_on_vertexai.py as in the directio
 * [Developing and Deploying a Machine Learning Model on Vertex AI using Python](https://medium.com/@lakshmanok/developing-and-deploying-a-machine-learning-model-on-vertex-ai-using-python-865b535814f8): Write training pipelines that will make your MLOps team happy
 * [How to build an MLOps pipeline for hyperparameter tuning in Vertex AI](https://lakshmanok.medium.com/how-to-build-an-mlops-pipeline-for-hyperparameter-tuning-in-vertex-ai-45cc2faf4ff5):
 Best practices to set up your model and orchestrator for hyperparameter tuning
-
 
