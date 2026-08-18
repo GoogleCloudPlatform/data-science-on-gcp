@@ -19,6 +19,7 @@ import gzip
 import shutil
 import logging
 import os.path
+from pathlib import Path
 import zipfile
 import datetime
 import tempfile
@@ -31,6 +32,7 @@ SOURCE = "https://storage.googleapis.com/data-science-on-gcp/edition2/raw"
 
 
 def urlopen(url):
+    """Open a URL with relaxed SSL validation for the BTS download source."""
     from urllib.request import urlopen as impl
     import ssl
 
@@ -43,69 +45,96 @@ def urlopen(url):
 
 def download(year: str, month: str, destdir: str):
     """
-    Downloads on-time performance data and returns local filename
-    year e.g.'2015'
-    month e.g. '01 for January
+    Download the monthly BTS on-time performance zip file.
+
+    Args:
+        year: Year to fetch, such as ``2015``.
+        month: Month to fetch, such as ``01``.
+        destdir: Directory where the zip file should be saved.
+
+    Returns:
+        The local path to the downloaded zip file.
     """
-    logging.info('Requesting data for {}-{}-*'.format(year, month))
+    logging.info(f'Requesting data for {year}-{month}-*')
 
-    url = os.path.join(SOURCE,
-                       "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_{}_{}.zip".format(year, int(month)))
-    logging.debug("Trying to download {}".format(url))
+    url = os.path.join(
+        SOURCE,
+        f"On_Time_Reporting_Carrier_On_Time_Performance_1987_present_{year}_{int(month)}.zip",
+    )
+    logging.debug(f"Trying to download {url}")
 
-    filename = os.path.join(destdir, "{}{}.zip".format(year, month))
+    filename = os.path.join(destdir, f"{year}{month}.zip")
     with open(filename, "wb") as fp:
         response = urlopen(url)
         fp.write(response.read())
-    logging.debug("{} saved".format(filename))
+    logging.debug(f"{filename} saved")
     return filename
 
 
 def zip_to_csv(filename, destdir):
     """
-    Extracts the CSV file from the zip file into the destdir
+    Extract the first CSV from a BTS zip archive and gzip it for upload.
+
+    Args:
+        filename: Local zip archive path.
+        destdir: Directory used for extraction.
+
+    Returns:
+        The path to the gzipped CSV file.
     """
-    zip_ref = zipfile.ZipFile(filename, 'r')
-    cwd = os.getcwd()
-    os.chdir(destdir)
-    zip_ref.extractall()
-    os.chdir(cwd)
-    csvfile = os.path.join(destdir, zip_ref.namelist()[0])
-    zip_ref.close()
-    logging.info("Extracted {}".format(csvfile))
+    with zipfile.ZipFile(filename, 'r') as zip_ref:
+        zip_ref.extractall(path=Path(destdir))
+        csvfile = os.path.join(destdir, zip_ref.namelist()[0])
+    logging.info(f"Extracted {csvfile}")
 
     # now gzip for faster upload to bucket
     gzipped = csvfile + ".gz"
     with open(csvfile, 'rb') as ifp:
         with gzip.open(gzipped, 'wb') as ofp:
             shutil.copyfileobj(ifp, ofp)
-    logging.info("Compressed into {}".format(gzipped))
+    logging.info(f"Compressed into {gzipped}")
 
     return gzipped
 
 
 def upload(csvfile, bucketname, blobname):
     """
-    Uploads the CSV file into the bucket with the given blobname
+    Upload a local file to Google Cloud Storage.
+
+    Args:
+        csvfile: Local file path to upload.
+        bucketname: Target GCS bucket name.
+        blobname: Destination object name within the bucket.
+
+    Returns:
+        The ``gs://`` URI for the uploaded object.
     """
     client = storage.Client()
     bucket = client.get_bucket(bucketname)
     logging.info(bucket)
     blob = Blob(blobname, bucket)
-    logging.debug('Uploading {} ...'.format(csvfile))
+    logging.debug(f'Uploading {csvfile} ...')
     blob.upload_from_filename(csvfile)
-    gcslocation = 'gs://{}/{}'.format(bucketname, blobname)
-    logging.info('Uploaded {} ...'.format(gcslocation))
+    gcslocation = f'gs://{bucketname}/{blobname}'
+    logging.info(f'Uploaded {gcslocation} ...')
     return gcslocation
 
 
 def bqload(gcsfile, year, month):
     """
-    Loads the CSV file in GCS into BigQuery, replacing the existing data in that partition
+    Load the GCS CSV into the partitioned BigQuery table.
+
+    Args:
+        gcsfile: ``gs://`` URI for the gzipped CSV file.
+        year: Year partition to overwrite.
+        month: Month partition to overwrite.
+
+    Returns:
+        A tuple of the destination table reference and number of loaded rows.
     """
     client = bigquery.Client()
     # truncate existing partition ...
-    table_ref = client.dataset('dsongcp').table('flights_raw${}{}'.format(year, month))
+    table_ref = client.dataset('dsongcp').table(f'flights_raw${year}{month}')
     job_config = bigquery.LoadJobConfig()
     job_config.source_format = 'CSV'
     job_config.write_disposition = 'WRITE_TRUNCATE'
@@ -127,43 +156,38 @@ def bqload(gcsfile, year, month):
 
 
 def ingest(year, month, bucket):
-    '''
-   ingest flights data from BTS website to Google Cloud Storage
-   return table, numrows on success.
-   raises exception if this data is not on BTS website
-   '''
+    """Download, transform, upload, and load a single month of flights data."""
     tempdir = tempfile.mkdtemp(prefix='ingest_flights')
     try:
         zipfile = download(year, month, tempdir)
         bts_csv = zip_to_csv(zipfile, tempdir)
-        gcsloc = 'flights/raw/{}{}.csv.gz'.format(year, month)
+        gcsloc = f'flights/raw/{year}{month}.csv.gz'
         gcsloc = upload(bts_csv, bucket, gcsloc)
         return bqload(gcsloc, year, month)
     finally:
-        logging.debug('Cleaning up by removing {}'.format(tempdir))
+        logging.debug(f'Cleaning up by removing {tempdir}')
         shutil.rmtree(tempdir)
 
 
 def next_month(bucketname):
-    '''
-     Finds which months are on GCS, and returns next year,month to download
-   '''
+    """Return the next year and month to ingest based on files already in GCS."""
     client = storage.Client()
     bucket = client.get_bucket(bucketname)
     blobs = list(bucket.list_blobs(prefix='flights/raw/'))
     files = [blob.name for blob in blobs if 'csv' in blob.name]  # csv files only
     lastfile = os.path.basename(files[-1])
-    logging.debug('The latest file on GCS is {}'.format(lastfile))
+    logging.debug(f'The latest file on GCS is {lastfile}')
     year = lastfile[:4]
     month = lastfile[4:6]
     return compute_next_month(year, month)
 
 
 def compute_next_month(year, month):
+    """Compute the next month after the given year and month."""
     dt = datetime.datetime(int(year), int(month), 15)  # 15th of month
     dt = dt + datetime.timedelta(30)  # will always go to next month
-    logging.debug('The next month is {}'.format(dt))
-    return '{}'.format(dt.year), '{:02d}'.format(dt.month)
+    logging.debug(f'The next month is {dt}')
+    return f'{dt.year}', f'{dt.month:02d}'
 
 
 if __name__ == '__main__':
@@ -187,8 +211,8 @@ if __name__ == '__main__':
         else:
             year_ = args.year
             month_ = args.month
-        logging.debug('Ingesting year={} month={}'.format(year_, month_))
+        logging.debug(f'Ingesting year={year_} month={month_}')
         tableref, numrows = ingest(year_, month_, args.bucket)
-        logging.info('Success ... ingested {} rows to {}'.format(numrows, tableref))
+        logging.info(f'Success ... ingested {numrows} rows to {tableref}')
     except Exception as e:
         logging.exception("Try again later?")
